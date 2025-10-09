@@ -23,16 +23,16 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
   const isInSweetSpot = value >= 60 && value <= 80;
 
   return (
-    <Card className={`p-6 w-96 bg-card/95 backdrop-blur-md border-2 border-primary shadow-lg ${isInSweetSpot && isCharging ? 'animate-pulse-glow' : ''}`}>
-      <div className="space-y-4">
+    <Card className={`p-4 w-64 bg-card/95 backdrop-blur-md border-2 border-primary shadow-lg ${isInSweetSpot && isCharging ? 'animate-pulse-glow' : ''}`}>
+      <div className="space-y-2">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <span className="text-sm font-bold text-foreground uppercase tracking-wider">
-            {isCharging ? "⚡ CHARGING..." : "⚡ Pull Back Power"}
+          <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+            {isCharging ? "⚡ CHARGING..." : "⚡ Power"}
           </span>
           {isCharging && (
             <span
-              className="text-sm font-black px-4 py-1.5 rounded-md uppercase tracking-wide transition-all duration-300"
+              className="text-xs font-black px-2 py-1 rounded-md uppercase tracking-wide transition-all duration-300"
               style={{
                 backgroundColor: getPowerColor(value),
                 color: "white",
@@ -45,7 +45,7 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
         </div>
         
         {/* Visual Power Bar with Zones */}
-        <div className="relative h-16 bg-muted/30 rounded-lg overflow-hidden border border-border">
+        <div className="relative h-12 bg-muted/30 rounded-lg overflow-hidden border border-border">
           {/* Zone indicators */}
           <div className="absolute inset-0 flex">
             <div className="w-[40%] bg-destructive/20 border-r border-destructive/30" />
@@ -84,8 +84,8 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
         {/* Large numeric display */}
         <div className="text-center">
           <div 
-            className={`text-6xl font-black transition-all duration-300 ${isInSweetSpot && isCharging ? 'scale-110' : ''}`}
-            style={{ 
+            className={`text-4xl font-black transition-all duration-300 ${isInSweetSpot && isCharging ? 'scale-110' : ''}`}
+            style={{
               color: getPowerColor(value),
               textShadow: isInSweetSpot && isCharging ? `0 0 20px ${getPowerColor(value)}80` : 'none',
             }}

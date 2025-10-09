@@ -297,11 +297,15 @@ export const GameCanvas = () => {
           </div>
         </div>
 
+        {/* Throw Meter - Top Left */}
+        {ballPhase === 'ready' && (
+          <div className="absolute top-4 left-4 z-20">
+            <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+          </div>
+        )}
+
         {/* Controls */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
-          {ballPhase === 'ready' && (
-            <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
-          )}
           
           <Button
             size="lg"
