@@ -1,13 +1,12 @@
-import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 
 interface ThrowMeterProps {
   value: number;
-  onChange: (value: number) => void;
+  isCharging: boolean;
   disabled?: boolean;
 }
 
-export const ThrowMeter = ({ value, onChange, disabled }: ThrowMeterProps) => {
+export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => {
   const getPowerColor = (power: number) => {
     if (power >= 60 && power <= 80) return "hsl(var(--game-success))";
     if (power < 40 || power > 90) return "hsl(var(--game-danger))";
@@ -24,21 +23,25 @@ export const ThrowMeter = ({ value, onChange, disabled }: ThrowMeterProps) => {
   const isInSweetSpot = value >= 60 && value <= 80;
 
   return (
-    <Card className={`p-6 w-96 bg-card/95 backdrop-blur-md border-2 border-primary shadow-lg ${isInSweetSpot ? 'animate-pulse-glow' : ''}`}>
+    <Card className={`p-6 w-96 bg-card/95 backdrop-blur-md border-2 border-primary shadow-lg ${isInSweetSpot && isCharging ? 'animate-pulse-glow' : ''}`}>
       <div className="space-y-4">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <span className="text-sm font-bold text-foreground uppercase tracking-wider">⚡ Throw Power</span>
-          <span
-            className="text-sm font-black px-4 py-1.5 rounded-md uppercase tracking-wide transition-all duration-300"
-            style={{
-              backgroundColor: getPowerColor(value),
-              color: "white",
-              boxShadow: `0 0 20px ${getPowerColor(value)}40`,
-            }}
-          >
-            {getPowerLabel(value)}
+          <span className="text-sm font-bold text-foreground uppercase tracking-wider">
+            {isCharging ? "⚡ CHARGING..." : "⚡ Pull Back Power"}
           </span>
+          {isCharging && (
+            <span
+              className="text-sm font-black px-4 py-1.5 rounded-md uppercase tracking-wide transition-all duration-300"
+              style={{
+                backgroundColor: getPowerColor(value),
+                color: "white",
+                boxShadow: `0 0 20px ${getPowerColor(value)}40`,
+              }}
+            >
+              {getPowerLabel(value)}
+            </span>
+          )}
         </div>
         
         {/* Visual Power Bar with Zones */}
@@ -54,11 +57,11 @@ export const ThrowMeter = ({ value, onChange, disabled }: ThrowMeterProps) => {
           
           {/* Power fill */}
           <div
-            className="absolute inset-y-0 left-0 transition-all duration-200 ease-out"
+            className={`absolute inset-y-0 left-0 transition-all ${isCharging ? 'duration-75' : 'duration-500'} ease-out`}
             style={{
               width: `${value}%`,
               background: `linear-gradient(90deg, ${getPowerColor(value)}, ${getPowerColor(value)}dd)`,
-              boxShadow: isInSweetSpot ? `0 0 15px ${getPowerColor(value)}` : 'none',
+              boxShadow: isInSweetSpot && isCharging ? `0 0 15px ${getPowerColor(value)}` : 'none',
             }}
           />
           
@@ -68,41 +71,30 @@ export const ThrowMeter = ({ value, onChange, disabled }: ThrowMeterProps) => {
           </div>
         </div>
         
-        {/* Slider */}
-        <div className="relative">
-          <Slider
-            value={[value]}
-            onValueChange={(vals) => onChange(vals[0])}
-            min={0}
-            max={100}
-            step={1}
-            disabled={disabled}
-            className="w-full"
-          />
-          
-          {/* Zone labels */}
-          <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-2">
-            <span>0</span>
-            <span className="text-destructive">40</span>
-            <span className="text-green-500 font-bold">60</span>
-            <span className="text-green-500 font-bold">80</span>
-            <span className="text-destructive">90</span>
-            <span>100</span>
-          </div>
+        {/* Zone labels */}
+        <div className="flex justify-between text-xs text-muted-foreground font-semibold">
+          <span>0</span>
+          <span className="text-destructive">40</span>
+          <span className="text-green-500 font-bold">60</span>
+          <span className="text-green-500 font-bold">80</span>
+          <span className="text-destructive">90</span>
+          <span>100</span>
         </div>
         
         {/* Large numeric display */}
         <div className="text-center">
           <div 
-            className={`text-6xl font-black transition-all duration-300 ${isInSweetSpot ? 'scale-110' : ''}`}
+            className={`text-6xl font-black transition-all duration-300 ${isInSweetSpot && isCharging ? 'scale-110' : ''}`}
             style={{ 
               color: getPowerColor(value),
-              textShadow: isInSweetSpot ? `0 0 20px ${getPowerColor(value)}80` : 'none',
+              textShadow: isInSweetSpot && isCharging ? `0 0 20px ${getPowerColor(value)}80` : 'none',
             }}
           >
             {value}
           </div>
-          <div className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Power Level</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-widest mt-1">
+            {isCharging ? "Charging..." : "Hold to charge"}
+          </div>
         </div>
       </div>
     </Card>

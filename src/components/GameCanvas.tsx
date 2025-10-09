@@ -18,11 +18,13 @@ export const GameCanvas = () => {
   const [isThowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameWon, setGameWon] = useState(false);
-  const [power, setPower] = useState(50);
+  const [power, setPower] = useState(0);
+  const [isCharging, setIsCharging] = useState(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
   const [isBallFlying, setIsBallFlying] = useState(false);
   const obstacleIdRef = useRef(0);
+  const chargeIntervalRef = useRef<number | null>(null);
 
   const targetScore = 100;
   const baseSuccessChance = 45;
@@ -68,14 +70,43 @@ export const GameCanvas = () => {
     return Math.random() * 100 < adjustedChance;
   };
 
-  const throwBall = () => {
+  const startCharging = () => {
+    if (isThowing || isBallFlying) return;
+    
+    setIsCharging(true);
+    setPower(0);
+    
+    // Charge power over time
+    chargeIntervalRef.current = window.setInterval(() => {
+      setPower((prev) => {
+        if (prev >= 100) {
+          return 0; // Loop back to 0 when reaching 100
+        }
+        return prev + 2; // Increase by 2 every interval
+      });
+    }, 50);
+  };
+
+  const releaseThrow = () => {
+    if (!isCharging) return;
+    
+    setIsCharging(false);
+    if (chargeIntervalRef.current) {
+      clearInterval(chargeIntervalRef.current);
+      chargeIntervalRef.current = null;
+    }
+    
+    throwBall(power);
+  };
+
+  const throwBall = (throwPower: number) => {
     if (isThowing || isBallFlying) return;
 
     setIsThrowing(true);
     setIsBallFlying(true);
 
     // Animate ball
-    const success = calculateSuccess(power);
+    const success = calculateSuccess(throwPower);
     
     setTimeout(() => {
       if (success) {
@@ -104,6 +135,7 @@ export const GameCanvas = () => {
       setIsBallFlying(false);
       setBallPosition({ x: 50, y: 80 });
       setIsThrowing(false);
+      setPower(0);
     }, 1500);
   };
 
@@ -206,15 +238,21 @@ export const GameCanvas = () => {
 
         {/* Controls */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
-          <ThrowMeter value={power} onChange={setPower} disabled={isThowing || isBallFlying} />
+          <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
           
           <Button
             size="lg"
-            onClick={throwBall}
+            onMouseDown={startCharging}
+            onMouseUp={releaseThrow}
+            onMouseLeave={() => {
+              if (isCharging) releaseThrow();
+            }}
+            onTouchStart={startCharging}
+            onTouchEnd={releaseThrow}
             disabled={isThowing || isBallFlying}
-            className="text-lg font-bold px-8 py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow"
+            className="text-lg font-bold px-8 py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none"
           >
-            {isBallFlying ? "THROWING..." : "THROW BALL"}
+            {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
 
           <div className="text-sm text-foreground/70 font-semibold">
