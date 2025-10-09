@@ -23,6 +23,7 @@ export const GameCanvas = () => {
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
   const [isBallFlying, setIsBallFlying] = useState(false);
+  const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const obstacleIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
 
@@ -104,39 +105,71 @@ export const GameCanvas = () => {
 
     setIsThrowing(true);
     setIsBallFlying(true);
-
-    // Animate ball
     const success = calculateSuccess(throwPower);
+
+    // Phase 1: Ball flies to curb (0.8s)
+    setBallPhase('flying');
+    setBallPosition({ x: 50, y: 80 });
     
     setTimeout(() => {
-      if (success) {
-        const newScore = score + 10;
-        setScore(newScore);
-        setShowConfetti(true);
-        toast.success(`+10 Points! Great throw!`, {
-          description: `Score: ${newScore}/${targetScore}`,
-        });
+      setBallPosition({ x: 50, y: 5 }); // Move to curb
+    }, 50);
 
-        if (newScore >= targetScore) {
-          setGameWon(true);
-          toast.success("🎉 You Win! Champion!");
-        } else if (newScore % 30 === 0) {
-          setLevel((prev) => prev + 1);
-          toast.info(`Level ${level + 1}! Difficulty increased!`);
+    setTimeout(() => {
+      // Phase 2: Ball hits curb (0.3s)
+      setBallPhase('hit');
+      
+      setTimeout(() => {
+        if (success) {
+          // Phase 3: Ball bounces back successfully (0.8s)
+          setBallPhase('bouncing');
+          setBallPosition({ x: 50, y: 80 }); // Bounce back to start
+          
+          setTimeout(() => {
+            const newScore = score + 10;
+            setScore(newScore);
+            setShowConfetti(true);
+            toast.success(`+10 Points! Perfect catch!`, {
+              description: `Score: ${newScore}/${targetScore}`,
+            });
+
+            if (newScore >= targetScore) {
+              setGameWon(true);
+              toast.success("🎉 You Win! Champion!");
+            } else if (newScore % 30 === 0) {
+              setLevel((prev) => prev + 1);
+              toast.info(`Level ${level + 1}! Difficulty increased!`);
+            }
+
+            setTimeout(() => setShowConfetti(false), 3000);
+            
+            // Reset
+            setBallPhase('ready');
+            setIsBallFlying(false);
+            setIsThrowing(false);
+            setPower(0);
+          }, 800);
+          
+        } else {
+          // Phase 3: Ball misses and falls (0.6s)
+          setBallPhase('missed');
+          setBallPosition({ x: 50, y: -20 }); // Fall down
+          
+          setTimeout(() => {
+            toast.error("Miss! Ball didn't bounce back", {
+              description: "Try timing your power better",
+            });
+            
+            // Reset
+            setBallPosition({ x: 50, y: 80 });
+            setBallPhase('ready');
+            setIsBallFlying(false);
+            setIsThrowing(false);
+            setPower(0);
+          }, 600);
         }
-
-        setTimeout(() => setShowConfetti(false), 3000);
-      } else {
-        toast.error("Miss! Ball didn't bounce back", {
-          description: "Try adjusting your power",
-        });
-      }
-
-      setIsBallFlying(false);
-      setBallPosition({ x: 50, y: 80 });
-      setIsThrowing(false);
-      setPower(0);
-    }, 1500);
+      }, 300);
+    }, 800);
   };
 
   const restartGame = () => {
@@ -196,9 +229,22 @@ export const GameCanvas = () => {
           <div className="w-full h-64 relative" style={{ background: "hsl(var(--game-street))" }}>
             {/* Curb */}
             <div
-              className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-gray-400 to-gray-600"
-              style={{ boxShadow: "0 4px 10px rgba(0,0,0,0.5)" }}
-            />
+              className={`absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-gray-400 to-gray-600 ${
+                ballPhase === 'hit' ? 'animate-pulse' : ''
+              }`}
+              style={{ 
+                boxShadow: ballPhase === 'hit' 
+                  ? "0 4px 10px rgba(0,0,0,0.5), 0 0 30px rgba(255, 165, 0, 0.6)"
+                  : "0 4px 10px rgba(0,0,0,0.5)" 
+              }}
+            >
+              {/* Impact effect */}
+              {ballPhase === 'hit' && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="w-16 h-16 rounded-full bg-orange-500/40 animate-ping" />
+                </div>
+              )}
+            </div>
             
             {/* Street lines */}
             <div className="absolute top-1/2 left-0 right-0 h-1 bg-yellow-400 opacity-80" />
@@ -222,16 +268,31 @@ export const GameCanvas = () => {
 
             {/* Ball */}
             <div
-              className={`absolute w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl transition-all duration-200 ${
-                isBallFlying ? "animate-ball-throw" : ""
+              className={`absolute w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl ${
+                ballPhase === 'flying' ? 'transition-all duration-[800ms] ease-out' :
+                ballPhase === 'hit' ? 'scale-90' :
+                ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
+                ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
+                'transition-all duration-200'
               }`}
               style={{
                 left: `${ballPosition.x}%`,
                 bottom: `${ballPosition.y}%`,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5), inset -5px -5px 10px rgba(0,0,0,0.3)",
+                boxShadow: ballPhase === 'hit' 
+                  ? "0 0 40px rgba(255, 165, 0, 0.8), 0 10px 30px rgba(0,0,0,0.5)"
+                  : "0 10px 30px rgba(0,0,0,0.5), inset -5px -5px 10px rgba(0,0,0,0.3)",
+                transform: `translateX(-50%) ${
+                  ballPhase === 'flying' ? 'scale(0.8) rotateZ(360deg)' :
+                  ballPhase === 'hit' ? 'scale(1.3)' :
+                  ballPhase === 'bouncing' ? 'scale(1.1) rotateZ(-360deg)' :
+                  ballPhase === 'missed' ? 'scale(0.6) rotateZ(180deg)' :
+                  'scale(1)'
+                }`,
               }}
             >
-              <div className="w-full h-full rounded-full border-4 border-orange-900/30" />
+              <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
+                ballPhase === 'hit' ? 'animate-pulse' : ''
+              }`} />
             </div>
           </div>
         </div>
