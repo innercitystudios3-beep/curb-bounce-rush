@@ -299,7 +299,9 @@ export const GameCanvas = () => {
 
         {/* Controls */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
-          <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+          {ballPhase === 'ready' && (
+            <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+          )}
           
           <Button
             size="lg"
@@ -316,9 +318,11 @@ export const GameCanvas = () => {
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
 
-          <div className="text-sm text-foreground/70 font-semibold">
-            Success Rate: {currentSuccessChance}% (Sweet spot: 60-80 power)
-          </div>
+          {ballPhase === 'ready' && (
+            <div className="text-sm text-foreground/70 font-semibold">
+              Success Rate: {currentSuccessChance}% (Sweet spot: 60-80 power)
+            </div>
+          )}
         </div>
 
         {/* Restart button */}
