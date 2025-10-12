@@ -23,17 +23,17 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
   const isInSweetSpot = value >= 60 && value <= 80;
 
   return (
-    <Card className="p-2 w-32 bg-card/95 backdrop-blur-md border border-border shadow-lg">
-      <div className="space-y-1">
+    <Card className="p-1.5 w-20 bg-card/95 backdrop-blur-md border border-border shadow-lg">
+      <div className="space-y-0.5">
         {/* Header */}
         <div className="text-center">
-          <span className="text-[10px] font-bold text-foreground uppercase tracking-wide">
+          <span className="text-[8px] font-bold text-foreground uppercase tracking-wide">
             Power
           </span>
         </div>
         
         {/* Visual Power Bar */}
-        <div className="relative h-6 bg-muted/30 rounded overflow-hidden border border-border">
+        <div className="relative h-4 bg-muted/30 rounded overflow-hidden border border-border">
           {/* Power fill */}
           <div
             className="absolute inset-y-0 left-0 transition-all duration-100 ease-linear bg-primary"
@@ -45,7 +45,7 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
         
         {/* Numeric display */}
         <div className="text-center">
-          <div className="text-xl font-black text-foreground">
+          <div className="text-base font-black text-foreground">
             {value}
           </div>
         </div>
