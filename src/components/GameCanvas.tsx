@@ -87,16 +87,6 @@ export const GameCanvas = () => {
     return () => clearInterval(interval);
   }, [gameStarted, gameWon, timeRemaining]);
 
-  // Voice feedback for scoring
-  const playVoiceFeedback = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.2;
-      utterance.pitch = 1.1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -339,7 +329,6 @@ export const GameCanvas = () => {
             setShowConfetti(true);
             
             const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
-            playVoiceFeedback("Good Shot");
             toast.success(`+10 Points! +${earnedCoins} Coins!${coinMessage}`, {
               description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
             });
