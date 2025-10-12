@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { ThrowMeter } from "./ThrowMeter";
 import { toast } from "sonner";
+import { soundManager } from "@/lib/soundManager";
+import { Volume2, VolumeX } from "lucide-react";
 
 interface Obstacle {
   id: number;
@@ -24,8 +26,10 @@ export const GameCanvas = () => {
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
+  const [isMuted, setIsMuted] = useState(soundManager.getMuted());
   const obstacleIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
+  const chargeSoundIntervalRef = useRef<number | null>(null);
 
   const targetScore = 100;
   const baseSuccessChance = 45;
@@ -77,6 +81,11 @@ export const GameCanvas = () => {
     setIsCharging(true);
     setPower(0);
     
+    // Play charging sound periodically
+    chargeSoundIntervalRef.current = window.setInterval(() => {
+      soundManager.playCharging();
+    }, 200);
+    
     // Charge power over time
     chargeIntervalRef.current = window.setInterval(() => {
       setPower((prev) => {
@@ -96,6 +105,10 @@ export const GameCanvas = () => {
       clearInterval(chargeIntervalRef.current);
       chargeIntervalRef.current = null;
     }
+    if (chargeSoundIntervalRef.current) {
+      clearInterval(chargeSoundIntervalRef.current);
+      chargeSoundIntervalRef.current = null;
+    }
     
     throwBall(power);
   };
@@ -106,6 +119,9 @@ export const GameCanvas = () => {
     setIsThrowing(true);
     setIsBallFlying(true);
     const success = calculateSuccess(throwPower);
+
+    // Play throw sound
+    soundManager.playThrow();
 
     // Phase 1: Ball flies to curb (0.8s)
     setBallPhase('flying');
@@ -118,12 +134,14 @@ export const GameCanvas = () => {
     setTimeout(() => {
       // Phase 2: Ball hits curb (0.3s)
       setBallPhase('hit');
+      soundManager.playImpact();
       
       setTimeout(() => {
         if (success) {
           // Phase 3: Ball bounces back successfully (0.8s)
           setBallPhase('bouncing');
           setBallPosition({ x: 50, y: 80 }); // Bounce back to start
+          soundManager.playSuccess();
           
           setTimeout(() => {
             const newScore = score + 10;
@@ -135,9 +153,11 @@ export const GameCanvas = () => {
 
             if (newScore >= targetScore) {
               setGameWon(true);
+              soundManager.playWin();
               toast.success("🎉 You Win! Champion!");
             } else if (newScore % 30 === 0) {
               setLevel((prev) => prev + 1);
+              soundManager.playLevelUp();
               toast.info(`Level ${level + 1}! Difficulty increased!`);
             }
 
@@ -154,6 +174,7 @@ export const GameCanvas = () => {
           // Phase 3: Ball misses and falls (0.6s)
           setBallPhase('missed');
           setBallPosition({ x: 50, y: -20 }); // Fall down
+          soundManager.playFail();
           
           setTimeout(() => {
             toast.error("Miss! Ball didn't bounce back", {
@@ -173,12 +194,19 @@ export const GameCanvas = () => {
   };
 
   const restartGame = () => {
+    soundManager.playClick();
     setScore(0);
     setLevel(1);
     setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
     toast.info("Game restarted! Good luck!");
+  };
+
+  const toggleMute = () => {
+    const newMutedState = soundManager.toggleMute();
+    setIsMuted(newMutedState);
+    soundManager.playClick();
   };
 
   return (
@@ -328,6 +356,17 @@ export const GameCanvas = () => {
             </div>
           )}
         </div>
+
+        {/* Sound toggle button */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleMute}
+          className="absolute top-4 right-24 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+          aria-label={isMuted ? "Unmute sounds" : "Mute sounds"}
+        >
+          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </Button>
 
         {/* Restart button */}
         <Button
