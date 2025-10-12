@@ -23,6 +23,7 @@ interface CurbCoin {
   position: number; // 0-100 percentage horizontal position
   value: number; // coin value (5, 10, or 15)
   collected: boolean;
+  expiresAt: number; // timestamp when coin should disappear
 }
 
 export const GameCanvas = () => {
@@ -152,12 +153,14 @@ export const GameCanvas = () => {
         if (Math.random() > 0.6) {
           const coinValues = [5, 10, 15]; // Different coin values
           const value = coinValues[Math.floor(Math.random() * coinValues.length)];
+          const lifetime = 5000 + Math.random() * 5000; // 5-10 seconds
           
           const newCoin: CurbCoin = {
             id: curbCoinIdRef.current++,
             position: 15 + Math.random() * 70, // Random position between 15-85%
             value: value,
             collected: false,
+            expiresAt: Date.now() + lifetime,
           };
           return [...prev, newCoin];
         }
@@ -166,6 +169,16 @@ export const GameCanvas = () => {
     }, 3000);
 
     return () => clearInterval(spawnCoinInterval);
+  }, []);
+
+  useEffect(() => {
+    // Remove expired coins
+    const checkExpiredCoins = setInterval(() => {
+      const now = Date.now();
+      setCurbCoins((prev) => prev.filter(coin => coin.expiresAt > now));
+    }, 500); // Check every 500ms
+
+    return () => clearInterval(checkExpiredCoins);
   }, []);
 
   useEffect(() => {
