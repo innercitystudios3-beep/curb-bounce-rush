@@ -159,6 +159,95 @@ class FBInstantManager {
       console.error('Failed to share:', error);
     }
   }
+
+  /**
+   * Get or create a leaderboard
+   */
+  async getLeaderboardAsync(name: string): Promise<any> {
+    if (!this.isSupported || !this.isInitialized) {
+      return null;
+    }
+
+    try {
+      return await window.FBInstant.getLeaderboardAsync(name);
+    } catch (error) {
+      console.error('Failed to get leaderboard:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Set score on leaderboard
+   */
+  async setLeaderboardScore(leaderboardName: string, score: number): Promise<void> {
+    if (!this.isSupported || !this.isInitialized) {
+      return;
+    }
+
+    try {
+      const leaderboard = await this.getLeaderboardAsync(leaderboardName);
+      if (leaderboard) {
+        await leaderboard.setScoreAsync(score);
+        console.log('Score updated on leaderboard');
+      }
+    } catch (error) {
+      console.error('Failed to set leaderboard score:', error);
+    }
+  }
+
+  /**
+   * Get leaderboard entries
+   */
+  async getLeaderboardEntries(leaderboardName: string, count: number = 10): Promise<any[]> {
+    if (!this.isSupported || !this.isInitialized) {
+      return [];
+    }
+
+    try {
+      const leaderboard = await this.getLeaderboardAsync(leaderboardName);
+      if (leaderboard) {
+        const entries = await leaderboard.getEntriesAsync(count, 0);
+        return entries || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to get leaderboard entries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get context (playing with friends)
+   */
+  getContextID(): string | null {
+    if (!this.isSupported || !this.isInitialized) {
+      return null;
+    }
+
+    try {
+      return window.FBInstant.context.getID();
+    } catch (error) {
+      console.error('Failed to get context ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get players in current context
+   */
+  async getPlayersInContext(): Promise<any[]> {
+    if (!this.isSupported || !this.isInitialized) {
+      return [];
+    }
+
+    try {
+      const players = await window.FBInstant.context.getPlayersAsync();
+      return players || [];
+    } catch (error) {
+      console.error('Failed to get context players:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

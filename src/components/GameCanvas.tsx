@@ -7,6 +7,8 @@ import { CoinDisplay } from "./CoinDisplay";
 import { FloatingCoins } from "./FloatingCoins";
 import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
+import { ShareButton } from "./ShareButton";
+import { Leaderboard } from "./Leaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -30,11 +32,10 @@ interface CurbCoin {
 export const GameCanvas = () => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
-  const [coins, setCoins] = useState(() => {
-    const saved = localStorage.getItem('game-coins');
-    return saved ? parseInt(saved, 10) : 0;
-  });
+  const [coins, setCoins] = useState(0);
+  const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showFloatingCoins, setShowFloatingCoins] = useState(false);
   const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
   const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
@@ -68,28 +69,33 @@ export const GameCanvas = () => {
   
   const currentSuccessChance = Math.max(30, baseSuccessChance - (level - 1) * successChanceDecrease);
 
-  // Load player data from FBInstant on mount
+  // Load player data from FBInstant or localStorage
   useEffect(() => {
     const loadPlayerData = async () => {
       if (fbInstant.isFBInstant()) {
         const data = await fbInstant.getPlayerDataAsync(['coins', 'highScore']);
-        if (data.coins) {
-          setCoins(data.coins);
-        }
+        setCoins(data.coins || 0);
+        setHighScore(data.highScore || 0);
+      } else {
+        // Fallback to localStorage
+        const savedCoins = localStorage.getItem('game-coins');
+        const savedHighScore = localStorage.getItem('game-highScore');
+        setCoins(savedCoins ? parseInt(savedCoins) : 0);
+        setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
       }
     };
     loadPlayerData();
   }, []);
 
-  // Persist coins to localStorage and FBInstant
+  // Save player data to both localStorage and FBInstant
   useEffect(() => {
     localStorage.setItem('game-coins', coins.toString());
+    localStorage.setItem('game-highScore', highScore.toString());
     
-    // Also save to FBInstant if available
     if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ coins });
+      fbInstant.setPlayerDataAsync({ coins, highScore });
     }
-  }, [coins]);
+  }, [coins, highScore]);
 
   // Timer countdown
   useEffect(() => {
@@ -520,27 +526,31 @@ export const GameCanvas = () => {
 
   const restartGame = async () => {
     soundManager.playClick();
+    
+    // Update high score if current score is higher
+    if (score > highScore) {
+      setHighScore(score);
+      
+      // Update leaderboard if in Facebook
+      if (fbInstant.isFBInstant()) {
+        await fbInstant.setLeaderboardScore('global_leaderboard', score);
+      }
+    }
+    
     setScore(0);
     setLevel(1);
     setCoinsEarned(0);
     setConsecutiveHits(0);
-    setBallHorizontalPosition(50); // Reset to center
-    setCurbCoins([]); // Clear all curb coins
+    setBallHorizontalPosition(50);
+    setCurbCoins([]);
     setGameWon(false);
     setGameLost(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
     setTimeRemaining(180);
+    setShowLeaderboard(false);
     toast.info("Game restarted! Good luck!");
-    
-    // Save game state to FBInstant if available
-    if (fbInstant.isFBInstant()) {
-      await fbInstant.setPlayerDataAsync({
-        coins: coins,
-        highScore: score > (await fbInstant.getPlayerDataAsync(['highScore'])).highScore || 0 ? score : (await fbInstant.getPlayerDataAsync(['highScore'])).highScore
-      });
-    }
   };
 
   const toggleMute = () => {
@@ -984,11 +994,17 @@ export const GameCanvas = () => {
       {/* Win modal */}
       {gameWon && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <Card className="p-8 text-center space-y-6 animate-bounce-in border-4 border-primary bg-card">
+          <Card className="p-8 text-center space-y-6 animate-bounce-in border-4 border-primary bg-card max-w-md">
             <div className="text-6xl">🏆</div>
             <h2 className="text-4xl font-bold text-primary">YOU WIN!</h2>
             <p className="text-xl text-foreground">
               Final Score: <span className="font-bold text-accent">{score}</span>
+            </p>
+            {score > highScore && (
+              <p className="text-lg font-bold text-green-500">New High Score! 🎉</p>
+            )}
+            <p className="text-lg text-muted-foreground">
+              High Score: {highScore}
             </p>
             <p className="text-lg text-muted-foreground">
               Completed at Level {level}
@@ -999,13 +1015,28 @@ export const GameCanvas = () => {
             <p className="text-lg text-yellow-400">
               Total Coins: {coins}
             </p>
-            <Button
-              size="lg"
-              onClick={restartGame}
-              className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-            >
-              PLAY AGAIN
-            </Button>
+            
+            <div className="flex gap-2 justify-center">
+              <Button
+                size="lg"
+                onClick={restartGame}
+                className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+              >
+                PLAY AGAIN
+              </Button>
+              {fbInstant.isFBInstant() && (
+                <ShareButton score={score} coins={coinsEarned} />
+              )}
+            </div>
+            
+            {fbInstant.isFBInstant() && (
+              <button
+                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                className="text-primary underline mt-2"
+              >
+                {showLeaderboard ? "Hide" : "Show"} Leaderboard
+              </button>
+            )}
           </Card>
           <ConfettiEffect />
         </div>
@@ -1014,7 +1045,7 @@ export const GameCanvas = () => {
       {/* Lose modal */}
       {gameLost && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-          <Card className="p-8 text-center space-y-6 animate-fade-in border-4 border-red-500 bg-card">
+          <Card className="p-8 text-center space-y-6 animate-fade-in border-4 border-red-500 bg-card max-w-md">
             <div className="text-6xl">💀</div>
             <h2 className="text-4xl font-bold text-red-500">YOU LOSE</h2>
             <p className="text-xl text-foreground">
@@ -1022,6 +1053,12 @@ export const GameCanvas = () => {
             </p>
             <p className="text-xl text-foreground">
               Final Score: <span className="font-bold text-accent">{score}</span>
+            </p>
+            {score > highScore && (
+              <p className="text-lg font-bold text-green-500">New High Score! 🎉</p>
+            )}
+            <p className="text-lg text-muted-foreground">
+              High Score: {highScore}
             </p>
             <p className="text-lg text-muted-foreground">
               Reached Level {level}
@@ -1032,14 +1069,44 @@ export const GameCanvas = () => {
             <p className="text-lg text-yellow-400">
               Total Coins: {coins}
             </p>
-            <Button
-              size="lg"
-              onClick={restartGame}
-              className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-            >
-              TRY AGAIN
-            </Button>
+            
+            <div className="flex gap-2 justify-center">
+              <Button
+                size="lg"
+                onClick={restartGame}
+                className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+              >
+                TRY AGAIN
+              </Button>
+              {fbInstant.isFBInstant() && (
+                <ShareButton score={score} coins={coinsEarned} />
+              )}
+            </div>
+            
+            {fbInstant.isFBInstant() && (
+              <button
+                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                className="text-primary underline mt-2"
+              >
+                {showLeaderboard ? "Hide" : "Show"} Leaderboard
+              </button>
+            )}
           </Card>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (gameWon || gameLost) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-[60] p-4">
+          <div className="relative">
+            <button
+              onClick={() => setShowLeaderboard(false)}
+              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-8 h-8 flex items-center justify-center hover:bg-destructive/90 z-10"
+            >
+              ✕
+            </button>
+            <Leaderboard />
+          </div>
         </div>
       )}
     </div>
