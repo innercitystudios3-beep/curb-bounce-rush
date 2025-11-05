@@ -91,6 +91,118 @@ function Car({ position }: { position: [number, number, number] }) {
   );
 }
 
+// 3D Bicycle with Rider component
+function BikeWithRider({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Bike frame */}
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <boxGeometry args={[0.8, 0.05, 0.05]} />
+        <meshStandardMaterial color="#2196F3" />
+      </mesh>
+      <mesh position={[-0.2, 0.3, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
+        <boxGeometry args={[0.5, 0.05, 0.05]} />
+        <meshStandardMaterial color="#2196F3" />
+      </mesh>
+      <mesh position={[0.2, 0.3, 0]} rotation={[0, 0, -Math.PI / 4]} castShadow>
+        <boxGeometry args={[0.5, 0.05, 0.05]} />
+        <meshStandardMaterial color="#2196F3" />
+      </mesh>
+      {/* Handlebars */}
+      <mesh position={[0.4, 0.7, 0]} castShadow>
+        <boxGeometry args={[0.05, 0.2, 0.4]} />
+        <meshStandardMaterial color="#333333" />
+      </mesh>
+      {/* Seat */}
+      <mesh position={[-0.3, 0.7, 0]} castShadow>
+        <boxGeometry args={[0.15, 0.05, 0.2]} />
+        <meshStandardMaterial color="#8b4513" />
+      </mesh>
+      {/* Wheels */}
+      <mesh position={[-0.4, 0.3, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.3, 0.05, 8, 16]} />
+        <meshStandardMaterial color="#333333" />
+      </mesh>
+      <mesh position={[0.4, 0.3, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.3, 0.05, 8, 16]} />
+        <meshStandardMaterial color="#333333" />
+      </mesh>
+      
+      {/* Rider - Body */}
+      <mesh position={[-0.15, 1.1, 0]} castShadow>
+        <boxGeometry args={[0.3, 0.5, 0.2]} />
+        <meshStandardMaterial color="#ff9800" />
+      </mesh>
+      {/* Rider - Head */}
+      <mesh position={[-0.15, 1.55, 0]} castShadow>
+        <sphereGeometry args={[0.15, 8, 8]} />
+        <meshStandardMaterial color="#ffdbac" />
+      </mesh>
+      {/* Rider - Helmet */}
+      <mesh position={[-0.15, 1.65, 0]} castShadow>
+        <sphereGeometry args={[0.17, 8, 8]} />
+        <meshStandardMaterial color="#f44336" />
+      </mesh>
+      {/* Rider - Arms */}
+      <mesh position={[0.1, 1.0, 0.15]} rotation={[0, 0, Math.PI / 3]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+        <meshStandardMaterial color="#ff9800" />
+      </mesh>
+      <mesh position={[0.1, 1.0, -0.15]} rotation={[0, 0, Math.PI / 3]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+        <meshStandardMaterial color="#ff9800" />
+      </mesh>
+      {/* Rider - Legs */}
+      <mesh position={[-0.15, 0.7, 0.1]} rotation={[Math.PI / 6, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+        <meshStandardMaterial color="#1976D2" />
+      </mesh>
+      <mesh position={[-0.15, 0.7, -0.1]} rotation={[-Math.PI / 6, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 0.4, 8]} />
+        <meshStandardMaterial color="#1976D2" />
+      </mesh>
+    </group>
+  );
+}
+
+// 3D Scooter component
+function Scooter({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Deck */}
+      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.8, 0.05, 0.25]} />
+        <meshStandardMaterial color="#4CAF50" />
+      </mesh>
+      {/* Handlebar post */}
+      <mesh position={[0.3, 0.5, 0]} castShadow>
+        <cylinderGeometry args={[0.03, 0.03, 0.7, 8]} />
+        <meshStandardMaterial color="#9e9e9e" />
+      </mesh>
+      {/* Handlebars */}
+      <mesh position={[0.3, 0.85, 0]} castShadow>
+        <boxGeometry args={[0.05, 0.05, 0.4]} />
+        <meshStandardMaterial color="#424242" />
+      </mesh>
+      {/* Front wheel */}
+      <mesh position={[0.35, 0.15, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.15, 0.04, 8, 16]} />
+        <meshStandardMaterial color="#212121" />
+      </mesh>
+      {/* Back wheel */}
+      <mesh position={[-0.35, 0.15, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.15, 0.04, 8, 16]} />
+        <meshStandardMaterial color="#212121" />
+      </mesh>
+      {/* Fender */}
+      <mesh position={[-0.35, 0.25, 0]} castShadow>
+        <boxGeometry args={[0.15, 0.02, 0.28]} />
+        <meshStandardMaterial color="#81C784" />
+      </mesh>
+    </group>
+  );
+}
+
 // Ground/Street component
 function Ground() {
   return (
@@ -184,6 +296,16 @@ function Scene() {
       {/* Parked cars */}
       <Car position={[-9, 0, -5]} />
       <Car position={[9, 0, -2]} />
+      
+      {/* Bikes with riders */}
+      <BikeWithRider position={[-8, 0, 3]} />
+      <BikeWithRider position={[7, 0, -8]} />
+      <BikeWithRider position={[-10, 0, -12]} />
+      
+      {/* Scooters */}
+      <Scooter position={[8, 0, 4]} />
+      <Scooter position={[-7, 0, -1]} />
+      <Scooter position={[9, 0, -10]} />
     </>
   );
 }
