@@ -35,23 +35,69 @@ function House({ position }: { position: [number, number, number] }) {
   );
 }
 
-// 3D Tree component
+// 3D Tree component with fall colors
 function Tree({ position }: { position: [number, number, number] }) {
+  const fallColors = ['#ff6b35', '#ff8c42', '#ffa500', '#ff4500', '#d2691e'];
+  const randomColor = fallColors[Math.floor(Math.random() * fallColors.length)];
+  
   return (
     <group position={position}>
       {/* Trunk */}
       <mesh position={[0, 1, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.2, 0.3, 2, 8]} />
-        <meshStandardMaterial color="#8b4513" />
+        <meshStandardMaterial color="#654321" />
       </mesh>
-      {/* Foliage */}
+      {/* Foliage - Fall colors */}
       <mesh position={[0, 2.5, 0]} castShadow>
         <sphereGeometry args={[1, 8, 8]} />
-        <meshStandardMaterial color="#228b22" />
+        <meshStandardMaterial color={randomColor} />
       </mesh>
       <mesh position={[0, 3.2, 0]} castShadow>
         <sphereGeometry args={[0.8, 8, 8]} />
-        <meshStandardMaterial color="#2e8b57" />
+        <meshStandardMaterial color="#ff8c42" />
+      </mesh>
+    </group>
+  );
+}
+
+// Falling Leaf component
+function FallingLeaf({ position, speed = 0.02 }: { position: [number, number, number]; speed?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const rotationSpeed = useRef(Math.random() * 0.1 + 0.05);
+  const swayAmount = useRef(Math.random() * 0.5 + 0.3);
+  const swaySpeed = useRef(Math.random() * 0.05 + 0.02);
+  const initialX = useRef(position[0]);
+  
+  useFrame(({ clock }) => {
+    if (groupRef.current) {
+      // Fall down
+      groupRef.current.position.y -= speed;
+      
+      // Sway side to side
+      groupRef.current.position.x = initialX.current + Math.sin(clock.getElapsedTime() * swaySpeed.current) * swayAmount.current;
+      
+      // Rotate while falling
+      groupRef.current.rotation.z += rotationSpeed.current;
+      groupRef.current.rotation.x += rotationSpeed.current * 0.5;
+      
+      // Reset position when leaf falls below ground
+      if (groupRef.current.position.y < -1) {
+        groupRef.current.position.y = 15;
+        initialX.current = (Math.random() - 0.5) * 30;
+        groupRef.current.position.x = initialX.current;
+      }
+    }
+  });
+  
+  const leafColors = ['#ff6b35', '#ff8c42', '#ffa500', '#ff4500', '#d2691e', '#8b4513'];
+  const color = leafColors[Math.floor(Math.random() * leafColors.length)];
+  
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Leaf shape - simple diamond */}
+      <mesh castShadow>
+        <boxGeometry args={[0.15, 0.2, 0.02]} />
+        <meshStandardMaterial color={color} />
       </mesh>
     </group>
   );
@@ -263,13 +309,14 @@ function Ground() {
 function Scene() {
   return (
     <>
-      {/* Lighting setup for proper shadows and illumination */}
-      <ambientLight intensity={0.4} />
+      {/* Lighting setup for fall atmosphere with warm tones */}
+      <ambientLight intensity={0.5} />
       
-      {/* Main directional light (sun) with shadows */}
+      {/* Main directional light (autumn sun) with warm tone and shadows */}
       <directionalLight
-        position={[10, 20, 5]}
-        intensity={1.2}
+        position={[10, 15, 5]}
+        intensity={1.0}
+        color="#ffcc99"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -280,17 +327,17 @@ function Scene() {
         shadow-camera-bottom={-20}
       />
       
-      {/* Hemisphere light for realistic outdoor lighting */}
+      {/* Hemisphere light for fall outdoor lighting */}
       <hemisphereLight
-        args={['#87ceeb', '#f0e68c', 0.6]}
+        args={['#ffb366', '#d2691e', 0.5]}
       />
       
-      {/* Sky */}
+      {/* Fall Sky */}
       <Sky
         distance={450000}
-        sunPosition={[10, 20, 5]}
-        inclination={0.6}
-        azimuth={0.25}
+        sunPosition={[10, 15, 5]}
+        inclination={0.5}
+        azimuth={0.2}
       />
       
       {/* Clouds */}
@@ -331,6 +378,19 @@ function Scene() {
       <Scooter position={[8, 0, 4]} speed={0.09} />
       <Scooter position={[-7, 0, -1]} speed={0.08} />
       <Scooter position={[9, 0, -10]} speed={0.1} />
+      
+      {/* Falling Leaves */}
+      {Array.from({ length: 30 }).map((_, i) => (
+        <FallingLeaf
+          key={i}
+          position={[
+            (Math.random() - 0.5) * 30,
+            Math.random() * 15 + 5,
+            (Math.random() - 0.5) * 30
+          ]}
+          speed={Math.random() * 0.02 + 0.01}
+        />
+      ))}
     </>
   );
 }
