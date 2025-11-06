@@ -260,7 +260,7 @@ class FBInstantManager {
 
     try {
       const rewardedVideo = await window.FBInstant.getRewardedVideoAsync(
-        'REWARDED_VIDEO_PLACEMENT_ID' // Replace with your placement ID from Facebook
+        'YOUR_REWARDED_VIDEO_PLACEMENT_ID'
       );
       
       await rewardedVideo.loadAsync();
@@ -285,7 +285,7 @@ class FBInstantManager {
 
     try {
       const interstitial = await window.FBInstant.getInterstitialAdAsync(
-        'INTERSTITIAL_PLACEMENT_ID' // Replace with your placement ID from Facebook
+        'YOUR_INTERSTITIAL_PLACEMENT_ID'
       );
       
       await interstitial.loadAsync();
@@ -309,7 +309,7 @@ class FBInstantManager {
 
     try {
       const interstitial = await window.FBInstant.getInterstitialAdAsync(
-        'INTERSTITIAL_PLACEMENT_ID'
+        'YOUR_INTERSTITIAL_PLACEMENT_ID'
       );
       await interstitial.loadAsync();
       console.log('Interstitial ad preloaded');
