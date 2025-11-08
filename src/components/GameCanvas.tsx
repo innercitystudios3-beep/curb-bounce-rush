@@ -63,7 +63,8 @@ export const GameCanvas = () => {
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
-  const [gameLost, setGameLost] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
@@ -72,7 +73,7 @@ export const GameCanvas = () => {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [swipeAngle, setSwipeAngle] = useState(0);
 
-  const targetScore = 100;
+  const TIME_LIMIT = 180; // 3 minutes in seconds
   const baseSuccessChance = 45;
   const successChanceDecrease = 5;
   
@@ -116,14 +117,16 @@ export const GameCanvas = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (!gameStarted || gameWon || timeRemaining <= 0 || gameLost) return;
+    if (!gameStarted || gameEnded || timeRemaining <= 0) return;
     
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          setGameLost(true);
-          soundManager.playFail();
+          setGameEnded(true);
+          setFinalTime(TIME_LIMIT);
+          soundManager.playSuccess();
+          handleGameEnd(score, TIME_LIMIT);
           return 0;
         }
         return prev - 1;
@@ -131,7 +134,7 @@ export const GameCanvas = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameStarted, gameWon, timeRemaining, gameLost]);
+  }, [gameStarted, gameEnded, timeRemaining, score]);
 
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
@@ -531,17 +534,8 @@ export const GameCanvas = () => {
             const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
             const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
             toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
-              description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
+              description: `Score: ${newScore} | Streak: ${consecutiveHits + 1}`,
             });
-
-            if (newScore >= targetScore) {
-              const completionBonus = 20;
-              setCoins(prev => prev + completionBonus);
-              setGameWon(true);
-              setLevel(2); // Advance to level 2 on win
-              soundManager.playWin();
-              toast.success(`🎉 You Win! +${completionBonus} Bonus Coins!`);
-            }
 
             setTimeout(() => setShowConfetti(false), 3000);
             
@@ -618,14 +612,48 @@ export const GameCanvas = () => {
     setConsecutiveHits(0);
     setBallHorizontalPosition(50);
     setCurbCoins([]);
-    setGameWon(false);
-    setGameLost(false);
+    setGameEnded(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
-    setTimeRemaining(180);
+    setTimeRemaining(TIME_LIMIT);
     setShowLeaderboard(false);
+    setFinalTime(0);
     toast.info("Game restarted! Good luck!");
+  };
+
+  const handleGameEnd = (finalScore: number, timeTaken: number) => {
+    // Update high score
+    if (finalScore > highScore) {
+      setHighScore(finalScore);
+    }
+    
+    // Track games played and prepare to show ad
+    const newGamesPlayed = gamesPlayed + 1;
+    setGamesPlayed(newGamesPlayed);
+    
+    // Submit score to leaderboard with time as extra data
+    fbInstant.setLeaderboardScore('global_leaderboard', finalScore, timeTaken.toString());
+    
+    toast.success("Time's Up!", {
+      description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
+    });
+    
+    // Show interstitial ad every 3 games
+    if (newGamesPlayed % 3 === 0) {
+      if (preloadedInterstitial) {
+        setTimeout(async () => {
+          try {
+            await preloadedInterstitial.showAsync();
+            // Preload next ad
+            const nextAd = await fbInstant.preloadInterstitialAdAsync();
+            setPreloadedInterstitial(nextAd);
+          } catch (error) {
+            console.error('Failed to show interstitial:', error);
+          }
+        }, 2000);
+      }
+    }
   };
 
   const handleRewardEarned = (amount: number) => {
@@ -642,6 +670,10 @@ export const GameCanvas = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getElapsedTime = () => {
+    return TIME_LIMIT - timeRemaining;
   };
 
   return (
@@ -820,17 +852,12 @@ export const GameCanvas = () => {
               </div>
               <div className="h-8 w-px bg-border" />
               <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">LEVEL</div>
-                <div className="text-3xl font-bold text-accent">{level}</div>
+                <div className="text-xs text-muted-foreground font-semibold">ELAPSED</div>
+                <div className="text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
               </div>
               <div className="h-8 w-px bg-border" />
               <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">TARGET</div>
-                <div className="text-3xl font-bold text-foreground">{targetScore}</div>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">TIME</div>
+                <div className="text-xs text-muted-foreground font-semibold">TIME LEFT</div>
                 <div className={`text-3xl font-bold ${
                   timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
                 }`}>{formatTime(timeRemaining)}</div>
@@ -1090,22 +1117,22 @@ export const GameCanvas = () => {
       ))}
 
       {/* Win modal */}
-      {gameWon && (
+      {gameEnded && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <Card className="p-8 text-center space-y-6 animate-bounce-in border-4 border-primary bg-card max-w-md">
-            <div className="text-6xl">🏆</div>
-            <h2 className="text-4xl font-bold text-primary">YOU WIN!</h2>
+            <div className="text-6xl">⏰</div>
+            <h2 className="text-4xl font-bold text-primary">TIME'S UP!</h2>
             <p className="text-xl text-foreground">
               Final Score: <span className="font-bold text-accent">{score}</span>
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Time: <span className="font-bold">{formatTime(finalTime)}</span>
             </p>
             {score > highScore && (
               <p className="text-lg font-bold text-green-500">New High Score! 🎉</p>
             )}
             <p className="text-lg text-muted-foreground">
               High Score: {highScore}
-            </p>
-            <p className="text-lg text-muted-foreground">
-              Completed at Level {level}
             </p>
             <p className="text-xl text-yellow-500 font-bold">
               Session Coins Earned: {coinsEarned}
@@ -1144,65 +1171,8 @@ export const GameCanvas = () => {
         </div>
       )}
 
-      {/* Lose modal */}
-      {gameLost && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-          <Card className="p-8 text-center space-y-6 animate-fade-in border-4 border-red-500 bg-card max-w-md">
-            <div className="text-6xl">💀</div>
-            <h2 className="text-4xl font-bold text-red-500">YOU LOSE</h2>
-            <p className="text-xl text-foreground">
-              Time's Up!
-            </p>
-            <p className="text-xl text-foreground">
-              Final Score: <span className="font-bold text-accent">{score}</span>
-            </p>
-            {score > highScore && (
-              <p className="text-lg font-bold text-green-500">New High Score! 🎉</p>
-            )}
-            <p className="text-lg text-muted-foreground">
-              High Score: {highScore}
-            </p>
-            <p className="text-lg text-muted-foreground">
-              Reached Level {level}
-            </p>
-            <p className="text-xl text-yellow-500 font-bold">
-              Session Coins Earned: {coinsEarned}
-            </p>
-            <p className="text-lg text-yellow-400">
-              Total Coins: {coins}
-            </p>
-            
-            <div className="flex flex-col gap-3 items-center">
-              <div className="flex gap-2 justify-center flex-wrap">
-                <Button
-                  size="lg"
-                  onClick={restartGame}
-                  className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-                >
-                  TRY AGAIN
-                </Button>
-                {fbInstant.isFBInstant() && (
-                  <ShareButton score={score} coins={coinsEarned} />
-                )}
-              </div>
-              
-              {fbInstant.isFBInstant() && (
-                <button
-                  onClick={() => setShowLeaderboard(!showLeaderboard)}
-                  className="text-primary underline mt-2"
-                >
-                  {showLeaderboard ? "Hide" : "Show"} Leaderboard
-                </button>
-              )}
-              
-              <RewardedAdButton onRewardEarned={handleRewardEarned} />
-            </div>
-          </Card>
-        </div>
-      )}
-
       {/* Leaderboard Modal */}
-      {showLeaderboard && (gameWon || gameLost) && (
+      {showLeaderboard && gameEnded && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-[60] p-4">
           <div className="relative">
             <button

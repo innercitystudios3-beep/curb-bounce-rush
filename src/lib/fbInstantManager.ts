@@ -177,9 +177,9 @@ class FBInstantManager {
   }
 
   /**
-   * Set score on leaderboard
+   * Set score on leaderboard with optional extra data (like time)
    */
-  async setLeaderboardScore(leaderboardName: string, score: number): Promise<void> {
+  async setLeaderboardScore(leaderboardName: string, score: number, extraData?: string): Promise<void> {
     if (!this.isSupported || !this.isInitialized) {
       return;
     }
@@ -187,7 +187,7 @@ class FBInstantManager {
     try {
       const leaderboard = await this.getLeaderboardAsync(leaderboardName);
       if (leaderboard) {
-        await leaderboard.setScoreAsync(score);
+        await leaderboard.setScoreAsync(score, extraData);
         console.log('Score updated on leaderboard');
       }
     } catch (error) {

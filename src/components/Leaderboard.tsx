@@ -7,11 +7,18 @@ import { Trophy } from "lucide-react";
 interface LeaderboardEntry {
   rank: number;
   score: number;
+  extraData?: string;
   player: {
     name: string;
     photo: string;
   };
 }
+
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 export const Leaderboard = () => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -73,6 +80,11 @@ export const Leaderboard = () => {
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-medium">{entry.player.name}</p>
+                  {entry.extraData && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatTime(parseInt(entry.extraData))}
+                    </p>
+                  )}
                 </div>
                 <div className="font-bold text-primary">
                   {entry.score}
