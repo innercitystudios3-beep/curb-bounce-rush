@@ -681,8 +681,6 @@ export const GameCanvas = () => {
       className="relative w-full h-screen overflow-hidden bg-cover bg-center bg-no-repeat" 
       style={{ backgroundImage: 'url(/backgrounds/east-high-school.png)' }}
     >
-      {/* Dark overlay for better contrast */}
-      <div className="absolute inset-0 bg-black/30" />
       {/* Starting Screen */}
       {!gameStarted && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
