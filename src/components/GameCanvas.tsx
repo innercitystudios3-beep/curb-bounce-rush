@@ -89,21 +89,21 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
       successChanceDecrease: 5,
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
-      bullseyeSpeed: 0.5,
+      bullseyeSpeed: 10.0,
     },
     medium: {
       baseSuccessChance: 35,
       successChanceDecrease: 7,
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
-      bullseyeSpeed: 1.0,
+      bullseyeSpeed: 10.0,
     },
     hard: {
       baseSuccessChance: 25,
       successChanceDecrease: 10,
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
-      bullseyeSpeed: 1.8,
+      bullseyeSpeed: 10.0,
     }
   };
 
