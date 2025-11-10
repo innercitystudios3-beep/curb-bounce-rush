@@ -804,13 +804,19 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
       >
         {/* HUD */}
         <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
-          <Button 
-            variant="outline" 
-            onClick={onBackToDifficulty}
-            className="bg-card/90 backdrop-blur-sm hover:bg-card"
-          >
-            ← Back
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={onBackToDifficulty}
+              className="bg-card/90 backdrop-blur-sm hover:bg-card"
+            >
+              ← Back
+            </Button>
+            
+            {ballPhase === 'ready' && (
+              <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+            )}
+          </div>
           
           <div className="flex items-center gap-4">
             <Card className="px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
@@ -977,12 +983,6 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
           </div>
         </div>
 
-        {/* Throw Meter - Top Left */}
-        {ballPhase === 'ready' && (
-          <div className="absolute top-4 left-4 z-20">
-            <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
-          </div>
-        )}
 
         {/* Controls */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
