@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { GameCanvas } from "@/components/GameCanvas";
+import { GameCanvas, Difficulty } from "@/components/GameCanvas";
+import { DifficultySelection } from "@/components/DifficultySelection";
 import { FBInstantLoading } from "@/components/FBInstantLoading";
 import { fbInstant } from "@/lib/fbInstantManager";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 
   useEffect(() => {
     const initializeFBInstant = async () => {
@@ -51,9 +53,13 @@ const Index = () => {
     return <FBInstantLoading onComplete={handleLoadingComplete} />;
   }
 
+  if (!difficulty) {
+    return <DifficultySelection onSelectDifficulty={setDifficulty} />;
+  }
+
   return (
     <div className="w-full h-screen bg-background">
-      <GameCanvas />
+      <GameCanvas difficulty={difficulty} />
     </div>
   );
 };

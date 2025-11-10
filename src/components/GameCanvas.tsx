@@ -35,7 +35,13 @@ interface BullseyeTarget {
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
-export const GameCanvas = () => {
+export type Difficulty = "easy" | "medium" | "hard";
+
+interface GameCanvasProps {
+  difficulty: Difficulty;
+}
+
+export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [coins, setCoins] = useState(0);
@@ -74,10 +80,37 @@ export const GameCanvas = () => {
   const [swipeAngle, setSwipeAngle] = useState(0);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
-  const baseSuccessChance = 45;
-  const successChanceDecrease = 5;
   
-  const currentSuccessChance = Math.max(30, baseSuccessChance - (level - 1) * successChanceDecrease);
+  // Difficulty settings
+  const difficultySettings = {
+    easy: {
+      baseSuccessChance: 45,
+      successChanceDecrease: 5,
+      obstacleSpawnChance: 0.7,
+      obstacleSpeed: { min: 1, max: 2 },
+      bullseyeSpeed: 0.3,
+    },
+    medium: {
+      baseSuccessChance: 35,
+      successChanceDecrease: 7,
+      obstacleSpawnChance: 0.6,
+      obstacleSpeed: { min: 1.5, max: 3 },
+      bullseyeSpeed: 0.5,
+    },
+    hard: {
+      baseSuccessChance: 25,
+      successChanceDecrease: 10,
+      obstacleSpawnChance: 0.5,
+      obstacleSpeed: { min: 2, max: 4 },
+      bullseyeSpeed: 0.7,
+    }
+  };
+
+  const currentDifficultySettings = difficultySettings[difficulty];
+  const baseSuccessChance = currentDifficultySettings.baseSuccessChance;
+  const successChanceDecrease = currentDifficultySettings.successChanceDecrease;
+  
+  const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
   // Load player data from FBInstant or localStorage
   useEffect(() => {
@@ -198,19 +231,20 @@ export const GameCanvas = () => {
   useEffect(() => {
     // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
-      if (Math.random() > 0.7) {
+      if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
         const newObstacle: Obstacle = {
           id: obstacleIdRef.current++,
           type: Math.random() > 0.5 ? "car" : "bike",
           position: -10,
-          speed: 1 + Math.random() * 2,
+          speed: currentDifficultySettings.obstacleSpeed.min + 
+                 Math.random() * (currentDifficultySettings.obstacleSpeed.max - currentDifficultySettings.obstacleSpeed.min),
         };
         setObstacles((prev) => [...prev, newObstacle]);
       }
     }, 2000);
 
     return () => clearInterval(spawnInterval);
-  }, []);
+  }, [currentDifficultySettings]);
 
   useEffect(() => {
     // Spawn curb coins randomly
@@ -267,7 +301,7 @@ export const GameCanvas = () => {
     // Move bullseye target slowly
     const moveInterval = setInterval(() => {
       setBullseyeTarget((prev) => {
-        let newPosition = prev.position + (prev.direction * 0.3); // Slow movement
+        let newPosition = prev.position + (prev.direction * currentDifficultySettings.bullseyeSpeed);
         let newDirection = prev.direction;
         
         // Bounce at edges
@@ -284,7 +318,7 @@ export const GameCanvas = () => {
     }, 50);
 
     return () => clearInterval(moveInterval);
-  }, []);
+  }, [currentDifficultySettings]);
 
   const calculateSuccess = (throwPower: number) => {
     // Success rate increases if power is between 60-80 (sweet spot)
