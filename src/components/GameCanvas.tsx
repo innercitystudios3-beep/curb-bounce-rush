@@ -893,15 +893,28 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
               >
                 <div className="relative -translate-x-1/2">
                   {/* Outer ring - red */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
+                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 ${
+                    isCharging ? 'animate-ping' : 'animate-pulse'
+                  }`} />
                   {/* Middle ring - white */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
                   {/* Inner ring - red */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
                   {/* Center dot - white */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
-                  {/* Glow effect */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-red-400/30 blur-md animate-pulse" />
+                  {/* Enhanced glow effect during charging */}
+                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-400/30 blur-md ${
+                    isCharging ? 'w-20 h-20 animate-ping' : 'w-14 h-14 animate-pulse'
+                  }`} />
+                  {/* Moving indicator during charging */}
+                  {isCharging && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16">
+                      <div className="absolute inset-0 rounded-full border-2 border-yellow-400 animate-ping" />
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-yellow-400 font-bold text-xs whitespace-nowrap animate-bounce">
+                        MOVING!
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
