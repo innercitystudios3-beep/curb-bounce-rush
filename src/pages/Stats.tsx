@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,7 +141,7 @@ export default function Stats() {
     localStorage.setItem('unlockedAchievements', JSON.stringify([...newUnlocked]));
   };
 
-  const checkNewAchievements = () => {
+  const checkNewAchievements = useCallback(() => {
     achievements.forEach((achievement) => {
       const isUnlocked = isAchievementUnlocked(achievement);
       const wasUnlocked = unlockedAchievements.has(achievement.id);
@@ -159,14 +159,14 @@ export default function Stats() {
         setTimeout(() => setShowConfetti(false), 4000);
       }
     });
-  };
+  }, [achievements, unlockedAchievements]);
 
   // Check for new achievements when stats load
   useEffect(() => {
     if (!isLoading) {
       checkNewAchievements();
     }
-  }, [stats, isLoading]);
+  }, [stats, isLoading, checkNewAchievements]);
 
   if (isLoading) {
     return (
