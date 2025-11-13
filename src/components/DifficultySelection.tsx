@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fbInstant } from "@/lib/fbInstantManager";
+import { useNavigate } from "react-router-dom";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -12,6 +13,7 @@ interface DifficultySelectionProps {
 }
 
 export const DifficultySelection = ({ onSelectDifficulty, onOpenShop }: DifficultySelectionProps) => {
+  const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
 
   useEffect(() => {
@@ -67,6 +69,18 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop }: Difficul
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
       <div className="max-w-4xl w-full">
         <div className="text-center mb-8">
+          {/* Stats Button */}
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={() => navigate('/stats')}
+              variant="outline"
+              className="gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              View Stats
+            </Button>
+          </div>
+
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-foreground">
             Select Difficulty
           </h1>
