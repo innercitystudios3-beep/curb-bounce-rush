@@ -172,6 +172,32 @@ class SoundManager {
     });
   }
 
+  // Achievement unlock celebration sound
+  playAchievement() {
+    if (this.isMuted) return;
+    
+    // Play triumphant fanfare with multiple notes
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1568.00]; // C5, E5, G5, C6, E6, G6
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        this.playTone(freq, 0.25, 'triangle', 0.6);
+      }, index * 100);
+    });
+  }
+
+  // Milestone celebration sound (for 100 points)
+  playMilestone() {
+    if (this.isMuted) return;
+    
+    // Play exciting ascending arpeggio
+    const notes = [783.99, 987.77, 1174.66, 1567.98]; // G5, B5, D6, G6
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        this.playTone(freq, 0.2, 'sine', 0.7);
+      }, index * 80);
+    });
+  }
+
   // Mute/unmute toggle
   toggleMute() {
     this.isMuted = !this.isMuted;

@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Trophy, Coins, Target, Timer, Award, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fbInstant } from "@/lib/fbInstantManager";
+import { ConfettiEffect } from "@/components/ConfettiEffect";
+import { soundManager } from "@/lib/soundManager";
+import { toast } from "sonner";
 
 interface DifficultyStats {
   coins: number;
@@ -27,9 +30,12 @@ export default function Stats() {
   });
   const [playerName, setPlayerName] = useState("Player");
   const [isLoading, setIsLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAllStats();
+    loadUnlockedAchievements();
   }, []);
 
   const loadAllStats = async () => {
@@ -121,6 +127,47 @@ export default function Stats() {
     return achievement.current >= achievement.threshold;
   };
 
+  const loadUnlockedAchievements = () => {
+    const stored = localStorage.getItem('unlockedAchievements');
+    if (stored) {
+      setUnlockedAchievements(new Set(JSON.parse(stored)));
+    }
+  };
+
+  const saveUnlockedAchievement = (achievementId: string) => {
+    const newUnlocked = new Set(unlockedAchievements);
+    newUnlocked.add(achievementId);
+    setUnlockedAchievements(newUnlocked);
+    localStorage.setItem('unlockedAchievements', JSON.stringify([...newUnlocked]));
+  };
+
+  const checkNewAchievements = () => {
+    achievements.forEach((achievement) => {
+      const isUnlocked = isAchievementUnlocked(achievement);
+      const wasUnlocked = unlockedAchievements.has(achievement.id);
+      
+      if (isUnlocked && !wasUnlocked) {
+        // New achievement unlocked!
+        saveUnlockedAchievement(achievement.id);
+        soundManager.playAchievement();
+        setShowConfetti(true);
+        
+        toast.success(`🏆 Achievement Unlocked!`, {
+          description: achievement.name,
+        });
+        
+        setTimeout(() => setShowConfetti(false), 4000);
+      }
+    });
+  };
+
+  // Check for new achievements when stats load
+  useEffect(() => {
+    if (!isLoading) {
+      checkNewAchievements();
+    }
+  }, [stats, isLoading]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
@@ -132,7 +179,9 @@ export default function Stats() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
+    <>
+      {showConfetti && <ConfettiEffect />}
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -293,6 +342,7 @@ export default function Stats() {
           ))}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

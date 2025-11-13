@@ -571,6 +571,11 @@ export const GameCanvas = ({
             const newScore = score + pointsEarned;
             setScore(newScore);
             
+            // Check for 100 point milestone celebration
+            const previousHundred = Math.floor(score / 100);
+            const currentHundred = Math.floor(newScore / 100);
+            const reachedMilestone = currentHundred > previousHundred;
+            
             // Calculate and award coins (including coin bonus)
             const earnedCoins = calculateCoinsEarned(throwPower, true) + coinBonus;
             setCoins(prev => prev + earnedCoins);
@@ -586,13 +591,22 @@ export const GameCanvas = ({
             
             setShowConfetti(true);
             
+            // Play milestone celebration if reached 100, 200, 300, etc.
+            if (reachedMilestone) {
+              soundManager.playMilestone();
+              toast.success(`🎉 ${currentHundred * 100} Points Milestone!`, {
+                description: `Amazing progress! Keep it up!`,
+              });
+              setTimeout(() => setShowConfetti(true), 100);
+            }
+            
             const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
             const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
             toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
               description: `Score: ${newScore} | Streak: ${consecutiveHits + 1}`,
             });
 
-            setTimeout(() => setShowConfetti(false), 3000);
+            setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
             
             // Reset
             setBallPhase('ready');
