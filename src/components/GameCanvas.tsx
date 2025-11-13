@@ -630,11 +630,11 @@ export const GameCanvas = ({
   const restartGame = async () => {
     soundManager.playClick();
     
-    // Update high score if current score is higher
+    // Update high score and submit to leaderboard only if it's a new high score
     if (score > highScore) {
       setHighScore(score);
       
-      // Update leaderboard if in Facebook (difficulty-specific)
+      // Update leaderboard ONLY with high score if in Facebook (difficulty-specific)
       if (fbInstant.isFBInstant()) {
         await fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, score);
       }
@@ -678,17 +678,19 @@ export const GameCanvas = ({
   };
 
   const handleGameEnd = (finalScore: number, timeTaken: number) => {
-    // Update high score
+    // Update high score and submit to leaderboard only if it's a new high score
     if (finalScore > highScore) {
       setHighScore(finalScore);
+      
+      // Submit ONLY high score to leaderboard with time as extra data (difficulty-specific)
+      if (fbInstant.isFBInstant()) {
+        fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, finalScore, timeTaken.toString());
+      }
     }
     
     // Track games played and prepare to show ad
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
-    
-    // Submit score to leaderboard with time as extra data (difficulty-specific)
-    fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, finalScore, timeTaken.toString());
     
     toast.success("Time's Up!", {
       description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
