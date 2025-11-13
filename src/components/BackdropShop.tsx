@@ -110,6 +110,14 @@ export const BackdropShop = ({
       coinPrice: 5000,
       usdPrice: 1.99,
     },
+    {
+      id: "poindexter-village",
+      name: "Poindexter Village",
+      description: "Historic Museum and Cultural Center",
+      imageUrl: "/backgrounds/poindexter-village.png",
+      coinPrice: 5000,
+      usdPrice: 1.99,
+    },
   ];
 
   const handlePurchaseWithCoins = (backdrop: Backdrop) => {
