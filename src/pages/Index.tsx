@@ -221,6 +221,7 @@ const Index = () => {
         difficulty={difficulty} 
         onBackToDifficulty={handleBackToDifficulty}
         backdropImage={currentBackdrop}
+        currentBall={currentBall}
         onCoinsChange={handleCoinsUpdate}
       />
     </div>

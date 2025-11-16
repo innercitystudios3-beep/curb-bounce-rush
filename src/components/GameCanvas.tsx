@@ -41,6 +41,7 @@ interface GameCanvasProps {
   difficulty: Difficulty;
   onBackToDifficulty?: () => void;
   backdropImage?: string;
+  currentBall?: string;
   onCoinsChange?: (coins: number) => void;
 }
 
@@ -48,6 +49,7 @@ export const GameCanvas = ({
   difficulty = "easy", 
   onBackToDifficulty,
   backdropImage = "default",
+  currentBall = "default",
   onCoinsChange 
 }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
@@ -757,6 +759,13 @@ export const GameCanvas = ({
     return backdropMap[backdropImage] || backdropMap["default"];
   };
 
+  const getBallImageUrl = (ballId: string): string | null => {
+    if (ballId === 'default') {
+      return null;
+    }
+    return `/balls/${ballId}.png`;
+  };
+
   return (
     <div 
       className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
@@ -992,7 +1001,7 @@ export const GameCanvas = ({
 
             {/* Ball */}
             <div
-              className={`absolute w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl ${
+              className={`absolute w-16 h-16 ${
                 ballPhase === 'flying' ? 'transition-all duration-[800ms] ease-out' :
                 ballPhase === 'hit' ? 'scale-90' :
                 ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
@@ -1002,9 +1011,7 @@ export const GameCanvas = ({
               style={{
                 left: `${ballPosition.x}%`,
                 bottom: `${ballPosition.y}%`,
-                boxShadow: ballPhase === 'hit' 
-                  ? "0 0 40px rgba(255, 165, 0, 0.8), 0 10px 30px rgba(0,0,0,0.5)"
-                  : "0 10px 30px rgba(0,0,0,0.5), inset -5px -5px 10px rgba(0,0,0,0.3)",
+                filter: ballPhase === 'hit' ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
                 transform: `translateX(-50%) ${
                   ballPhase === 'flying' ? 'scale(0.8) rotateZ(360deg)' :
                   ballPhase === 'hit' ? 'scale(1.3)' :
@@ -1014,9 +1021,19 @@ export const GameCanvas = ({
                 }`,
               }}
             >
-              <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
-                ballPhase === 'hit' ? 'animate-pulse' : ''
-              }`} />
+              {getBallImageUrl(currentBall) ? (
+                <img 
+                  src={getBallImageUrl(currentBall)!} 
+                  alt="Ball" 
+                  className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
+                  <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
+                    ballPhase === 'hit' ? 'animate-pulse' : ''
+                  }`} />
+                </div>
+              )}
             </div>
           </div>
         </div>
