@@ -5,6 +5,7 @@ import { FBInstantLoading } from "@/components/FBInstantLoading";
 import { BackdropShop, Backdrop } from "@/components/BackdropShop";
 import { BallShop, BallSkin } from "@/components/BallShop";
 import { Achievements, Achievement } from "@/components/Achievements";
+import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +17,7 @@ const Index = () => {
   const [showShop, setShowShop] = useState(false);
   const [showBallShop, setShowBallShop] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showDailyChallenges, setShowDailyChallenges] = useState(false);
   const [currentCoins, setCurrentCoins] = useState(0);
   const [ownedBackdrops, setOwnedBackdrops] = useState<string[]>(["default"]);
   const [currentBackdrop, setCurrentBackdrop] = useState("default");
@@ -54,6 +56,47 @@ const Index = () => {
     },
   ]);
 
+  // Initialize daily challenges
+  const initializeDailyChallenges = (): DailyChallenge[] => {
+    const now = Date.now();
+    const expiresAt = now + (24 * 60 * 60 * 1000); // 24 hours from now
+    
+    return [
+      {
+        id: "bullseye_5",
+        title: "Bullseye Master",
+        description: "Hit 5 bullseyes in any game today",
+        goal: 5,
+        progress: 0,
+        completed: false,
+        coinReward: 500,
+        expiresAt
+      },
+      {
+        id: "score_500",
+        title: "High Scorer",
+        description: "Score 500 points in a single game",
+        goal: 500,
+        progress: 0,
+        completed: false,
+        coinReward: 300,
+        expiresAt
+      },
+      {
+        id: "perfect_streak",
+        title: "Perfection",
+        description: "Hit 5 consecutive throws without missing",
+        goal: 5,
+        progress: 0,
+        completed: false,
+        coinReward: 400,
+        expiresAt
+      }
+    ];
+  };
+
+  const [dailyChallenges, setDailyChallenges] = useState<DailyChallenge[]>(initializeDailyChallenges());
+
   useEffect(() => {
     const initializeFBInstant = async () => {
       try {
@@ -79,13 +122,14 @@ const Index = () => {
         // Start the game
         await fbInstant.startGameAsync();
         
-        // Load backdrop, ball, and achievement data
+        // Load backdrop, ball, achievement, and daily challenge data
         const data = await fbInstant.getPlayerDataAsync([
           'ownedBackdrops', 
           'currentBackdrop',
           'ownedBalls',
           'currentBall',
           'achievements',
+          'dailyChallenges',
           'coins_easy',
           'coins_medium', 
           'coins_hard'
@@ -105,6 +149,19 @@ const Index = () => {
         if (data.achievements) {
           setAchievements(data.achievements);
         }
+        if (data.dailyChallenges) {
+          // Check if challenges have expired
+          const now = Date.now();
+          const loadedChallenges = data.dailyChallenges as DailyChallenge[];
+          if (loadedChallenges[0]?.expiresAt < now) {
+            // Reset challenges if expired
+            const newChallenges = initializeDailyChallenges();
+            setDailyChallenges(newChallenges);
+            await fbInstant.setPlayerDataAsync({ dailyChallenges: newChallenges });
+          } else {
+            setDailyChallenges(loadedChallenges);
+          }
+        }
         // Load coins from all difficulties (use easy as default)
         const totalCoins = (data.coins_easy || 0) + (data.coins_medium || 0) + (data.coins_hard || 0);
         setCurrentCoins(totalCoins);
@@ -119,6 +176,7 @@ const Index = () => {
         const savedBalls = localStorage.getItem('ownedBalls');
         const savedCurrentBall = localStorage.getItem('currentBall');
         const savedAchievements = localStorage.getItem('achievements');
+        const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
         const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
         const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
         const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
@@ -128,6 +186,19 @@ const Index = () => {
         if (savedBalls) setOwnedBalls(JSON.parse(savedBalls));
         if (savedCurrentBall) setCurrentBall(savedCurrentBall);
         if (savedAchievements) setAchievements(JSON.parse(savedAchievements));
+        
+        if (storedChallenges) {
+          const parsedChallenges = JSON.parse(storedChallenges) as DailyChallenge[];
+          const now = Date.now();
+          if (parsedChallenges[0]?.expiresAt < now) {
+            const newChallenges = initializeDailyChallenges();
+            setDailyChallenges(newChallenges);
+            localStorage.setItem('curbball_dailyChallenges', JSON.stringify(newChallenges));
+          } else {
+            setDailyChallenges(parsedChallenges);
+          }
+        }
+        
         setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
         setIsLoading(false);
       }
@@ -254,6 +325,38 @@ const Index = () => {
     });
   };
 
+  const updateChallengeProgress = (challengeId: string, newProgress: number) => {
+    setDailyChallenges(prev => {
+      const updated = prev.map(challenge => {
+        if (challenge.id === challengeId && !challenge.completed) {
+          const progress = Math.max(challenge.progress, newProgress);
+          const completed = progress >= challenge.goal;
+          
+          // Check if newly completed
+          if (completed && !challenge.completed) {
+            setCurrentCoins(prev => prev + challenge.coinReward);
+            toast({
+              title: "🎯 Daily Challenge Complete!",
+              description: `${challenge.title} - Earned ${challenge.coinReward} coins!`,
+              duration: 5000,
+            });
+          }
+          
+          return { ...challenge, progress, completed };
+        }
+        return challenge;
+      });
+      
+      // Save to storage
+      localStorage.setItem('curbball_dailyChallenges', JSON.stringify(updated));
+      if (fbInstant.isFBInstant()) {
+        fbInstant.setPlayerDataAsync({ dailyChallenges: updated });
+      }
+      
+      return updated;
+    });
+  };
+
   if (!difficulty) {
     return (
       <>
@@ -262,6 +365,7 @@ const Index = () => {
         onOpenShop={() => setShowShop(true)}
         onOpenBallShop={() => setShowBallShop(true)}
         onOpenAchievements={() => setShowAchievements(true)}
+        onOpenDailyChallenges={() => setShowDailyChallenges(true)}
         />
       {showShop && (
         <BackdropShop
@@ -295,6 +399,13 @@ const Index = () => {
           achievements={achievements}
         />
       )}
+
+      {showDailyChallenges && (
+        <DailyChallenges
+          onClose={() => setShowDailyChallenges(false)}
+          challenges={dailyChallenges}
+        />
+      )}
       </>
     );
   }
@@ -316,6 +427,7 @@ const Index = () => {
         currentBall={currentBall}
         onCoinsChange={handleCoinsUpdate}
         onAchievementProgress={updateAchievementProgress}
+        onChallengeProgress={updateChallengeProgress}
       />
     </div>
   );
