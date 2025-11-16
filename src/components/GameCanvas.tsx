@@ -43,6 +43,7 @@ interface GameCanvasProps {
   backdropImage?: string;
   currentBall?: string;
   onCoinsChange?: (coins: number) => void;
+  onAchievementProgress?: (achievementId: string, newProgress: number, maxScore?: number) => void;
 }
 
 export const GameCanvas = ({ 
@@ -50,7 +51,8 @@ export const GameCanvas = ({
   onBackToDifficulty,
   backdropImage = "default",
   currentBall = "default",
-  onCoinsChange 
+  onCoinsChange,
+  onAchievementProgress
 }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
@@ -573,6 +575,11 @@ export const GameCanvas = ({
             const newScore = score + pointsEarned;
             setScore(newScore);
             
+            // Track achievement progress for high score
+            if (onAchievementProgress) {
+              onAchievementProgress('first_1000', newScore);
+            }
+            
             // Check for 100 point milestone celebration
             const previousHundred = Math.floor(score / 100);
             const currentHundred = Math.floor(newScore / 100);
@@ -707,6 +714,11 @@ export const GameCanvas = ({
     // Track games played and prepare to show ad
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
+    
+    // Track achievement for games played
+    if (onAchievementProgress) {
+      onAchievementProgress('play_50', newGamesPlayed);
+    }
     
     toast.success("Time's Up!", {
       description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
