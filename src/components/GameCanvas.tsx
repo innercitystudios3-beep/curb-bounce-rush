@@ -44,6 +44,7 @@ interface GameCanvasProps {
   currentBall?: string;
   onCoinsChange?: (coins: number) => void;
   onAchievementProgress?: (achievementId: string, newProgress: number, maxScore?: number) => void;
+  onChallengeProgress?: (challengeId: string, newProgress: number) => void;
 }
 
 export const GameCanvas = ({ 
@@ -52,7 +53,8 @@ export const GameCanvas = ({
   backdropImage = "default",
   currentBall = "default",
   onCoinsChange,
-  onAchievementProgress
+  onAchievementProgress,
+  onChallengeProgress
 }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
@@ -570,6 +572,11 @@ export const GameCanvas = ({
               bullseyeBonus = 50;
               pointsEarned += bullseyeBonus;
               soundManager.playLevelUp(); // Play special sound for bullseye
+              
+              // Track challenge progress for bullseye hits
+              if (onChallengeProgress) {
+                onChallengeProgress('bullseye_5', consecutiveHits + 1);
+              }
             }
             
             const newScore = score + pointsEarned;
@@ -578,6 +585,11 @@ export const GameCanvas = ({
             // Track achievement progress for high score
             if (onAchievementProgress) {
               onAchievementProgress('first_1000', newScore);
+            }
+            
+            // Track challenge progress for score
+            if (onChallengeProgress) {
+              onChallengeProgress('score_500', newScore);
             }
             
             // Check for 100 point milestone celebration
@@ -596,7 +608,16 @@ export const GameCanvas = ({
             spawnCoinParticles(earnedCoins);
             
             // Update streak
-            setConsecutiveHits(prev => prev + 1);
+            const newStreak = consecutiveHits + 1;
+            setConsecutiveHits(newStreak);
+            
+            // Track achievement and challenge progress for streak
+            if (onAchievementProgress) {
+              onAchievementProgress('streak_10', newStreak);
+            }
+            if (onChallengeProgress) {
+              onChallengeProgress('perfect_streak', newStreak);
+            }
             
             setShowConfetti(true);
             
@@ -632,6 +653,11 @@ export const GameCanvas = ({
           
           // Reset streak on miss
           setConsecutiveHits(0);
+          
+          // Reset challenge progress for streak on miss
+          if (onChallengeProgress) {
+            onChallengeProgress('perfect_streak', 0);
+          }
           
           setTimeout(() => {
             toast.error("Miss! Ball didn't bounce back", {

@@ -12,9 +12,10 @@ interface DifficultySelectionProps {
   onOpenShop?: () => void;
   onOpenBallShop?: () => void;
   onOpenAchievements?: () => void;
+  onOpenDailyChallenges?: () => void;
 }
 
-export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements }: DifficultySelectionProps) => {
+export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements, onOpenDailyChallenges }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
 
@@ -139,6 +140,20 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                     <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-orange-400/20 animate-shimmer" />
                     <Trophy className="w-6 h-6 relative z-10" />
                     <span className="relative z-10">Achievements</span>
+                    <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
+                  </Button>
+                )}
+
+                {/* Daily Challenges Button */}
+                {onOpenDailyChallenges && (
+                  <Button
+                    onClick={onOpenDailyChallenges}
+                    size="lg"
+                    className="gap-2 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-400/20 via-emerald-400/20 to-teal-400/20 animate-shimmer" />
+                    <Target className="w-6 h-6 relative z-10" />
+                    <span className="relative z-10">Daily Challenges</span>
                     <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
                   </Button>
                 )}
