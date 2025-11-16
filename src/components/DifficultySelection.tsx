@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useNavigate } from "react-router-dom";
@@ -11,9 +11,10 @@ interface DifficultySelectionProps {
   onSelectDifficulty: (difficulty: Difficulty) => void;
   onOpenShop?: () => void;
   onOpenBallShop?: () => void;
+  onOpenAchievements?: () => void;
 }
 
-export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop }: DifficultySelectionProps) => {
+export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
 
@@ -127,10 +128,24 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                     <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
                   </Button>
                 )}
+
+                {/* Achievements Button */}
+                {onOpenAchievements && (
+                  <Button
+                    onClick={onOpenAchievements}
+                    size="lg"
+                    className="gap-2 bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600 hover:from-amber-700 hover:via-yellow-700 hover:to-orange-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-orange-400/20 animate-shimmer" />
+                    <Trophy className="w-6 h-6 relative z-10" />
+                    <span className="relative z-10">Achievements</span>
+                    <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
+                  </Button>
+                )}
               </div>
               
               <p className="text-sm text-muted-foreground">
-                Unlock exclusive {onOpenShop && onOpenBallShop ? 'backgrounds & ball skins' : onOpenShop ? 'backgrounds' : 'ball skins'} with coins or cash!
+                Unlock exclusive rewards and track your progress!
               </p>
             </div>
           )}

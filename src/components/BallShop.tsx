@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ShoppingBag, Lock, Check, Coins, DollarSign } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ShoppingBag, Lock, Check, Coins, DollarSign, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fbInstant } from "@/lib/fbInstantManager";
 
@@ -13,6 +14,8 @@ export interface BallSkin {
   imageUrl: string;
   coinPrice: number;
   usdPrice: number;
+  achievementRequired?: string; // Achievement ID required to unlock
+  achievementName?: string; // Display name of achievement
 }
 
 interface BallShopProps {
@@ -23,6 +26,7 @@ interface BallShopProps {
   ownedBalls: string[];
   onSelectBall: (ballId: string) => void;
   currentBall: string;
+  unlockedAchievements?: string[];
 }
 
 export const BallShop = ({
@@ -33,6 +37,7 @@ export const BallShop = ({
   ownedBalls,
   onSelectBall,
   currentBall,
+  unlockedAchievements = [],
 }: BallShopProps) => {
   const { toast } = useToast();
   const [selectedBall, setSelectedBall] = useState<BallSkin | null>(null);
@@ -86,6 +91,37 @@ export const BallShop = ({
       coinPrice: 10000,
       usdPrice: 2.99,
     },
+    // Achievement-only balls
+    {
+      id: "golden-ball",
+      name: "Golden Ball",
+      description: "For true champions",
+      imageUrl: "/balls/golden-ball.png",
+      coinPrice: 0,
+      usdPrice: 0,
+      achievementRequired: "first_1000",
+      achievementName: "Score Master",
+    },
+    {
+      id: "platinum-ball",
+      name: "Platinum Ball",
+      description: "Dedication personified",
+      imageUrl: "/balls/platinum-ball.png",
+      coinPrice: 0,
+      usdPrice: 0,
+      achievementRequired: "play_50",
+      achievementName: "Marathon Player",
+    },
+    {
+      id: "fire-ball",
+      name: "Fire Ball",
+      description: "Burning hot streak",
+      imageUrl: "/balls/fire-ball.png",
+      coinPrice: 0,
+      usdPrice: 0,
+      achievementRequired: "streak_10",
+      achievementName: "On Fire",
+    },
   ];
 
   const handlePurchaseWithCoins = (ball: BallSkin) => {
@@ -124,6 +160,10 @@ export const BallShop = ({
 
   const isOwned = (ballId: string) => ownedBalls.includes(ballId);
   const isCurrent = (ballId: string) => currentBall === ballId;
+  const isAchievementUnlocked = (achievementId?: string) => {
+    if (!achievementId) return true;
+    return unlockedAchievements.includes(achievementId);
+  };
 
   return (
     <>
@@ -148,14 +188,16 @@ export const BallShop = ({
             {ballSkins.map((ball) => {
               const owned = isOwned(ball.id);
               const current = isCurrent(ball.id);
+              const achievementUnlocked = isAchievementUnlocked(ball.achievementRequired);
+              const isLocked = ball.achievementRequired && !achievementUnlocked;
 
               return (
-                <Card key={ball.id} className={`overflow-hidden ${current ? 'ring-2 ring-primary' : ''}`}>
+                <Card key={ball.id} className={`overflow-hidden ${current ? 'ring-2 ring-primary' : ''} ${isLocked ? 'opacity-75' : ''}`}>
                   <div className="aspect-square relative overflow-hidden bg-muted flex items-center justify-center p-4">
                     <img
                       src={ball.imageUrl}
                       alt={ball.name}
-                      className="w-full h-full object-contain"
+                      className={`w-full h-full object-contain ${isLocked ? 'filter grayscale blur-sm' : ''}`}
                     />
                     {current && (
                       <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
@@ -163,17 +205,41 @@ export const BallShop = ({
                         Active
                       </div>
                     )}
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <Lock className="w-12 h-12 text-white" />
+                      </div>
+                    )}
                   </div>
                   
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{ball.name}</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {ball.name}
+                      {ball.achievementRequired && (
+                        <Trophy className="w-4 h-4 text-primary" />
+                      )}
+                    </CardTitle>
                     <CardDescription className="text-sm">
                       {ball.description}
                     </CardDescription>
+                    {ball.achievementRequired && (
+                      <Badge variant={achievementUnlocked ? "default" : "secondary"} className="mt-2 w-fit">
+                        {achievementUnlocked ? `✓ ${ball.achievementName}` : `🔒 ${ball.achievementName}`}
+                      </Badge>
+                    )}
                   </CardHeader>
 
                   <CardFooter className="flex-col gap-2">
-                    {ball.id === "default" ? (
+                    {isLocked ? (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        disabled
+                      >
+                        <Lock className="w-4 h-4 mr-2" />
+                        Complete Achievement
+                      </Button>
+                    ) : ball.id === "default" ? (
                       <Button
                         className="w-full"
                         variant={current ? "secondary" : "default"}
@@ -189,6 +255,14 @@ export const BallShop = ({
                         disabled={current}
                       >
                         {current ? "Currently Active" : "Use This Ball"}
+                      </Button>
+                    ) : ball.achievementRequired ? (
+                      <Button
+                        className="w-full"
+                        variant="default"
+                        onClick={() => onSelectBall(ball.id)}
+                      >
+                        Use This Ball
                       </Button>
                     ) : (
                       <>
