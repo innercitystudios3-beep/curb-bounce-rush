@@ -118,6 +118,14 @@ export const BackdropShop = ({
       coinPrice: 5000,
       usdPrice: 1.99,
     },
+    {
+      id: "lincoln-theatre",
+      name: "Lincoln Theatre",
+      description: "Enriching artists and the community since 1928",
+      imageUrl: "/backgrounds/lincoln-theatre.png",
+      coinPrice: 5000,
+      usdPrice: 1.99,
+    },
   ];
 
   const handlePurchaseWithCoins = (backdrop: Backdrop) => {
