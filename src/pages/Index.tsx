@@ -3,6 +3,7 @@ import { GameCanvas, Difficulty } from "@/components/GameCanvas";
 import { DifficultySelection } from "@/components/DifficultySelection";
 import { FBInstantLoading } from "@/components/FBInstantLoading";
 import { BackdropShop, Backdrop } from "@/components/BackdropShop";
+import { BallShop, BallSkin } from "@/components/BallShop";
 import { fbInstant } from "@/lib/fbInstantManager";
 
 const Index = () => {
@@ -10,9 +11,12 @@ const Index = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [showShop, setShowShop] = useState(false);
+  const [showBallShop, setShowBallShop] = useState(false);
   const [currentCoins, setCurrentCoins] = useState(0);
   const [ownedBackdrops, setOwnedBackdrops] = useState<string[]>(["default"]);
   const [currentBackdrop, setCurrentBackdrop] = useState("default");
+  const [ownedBalls, setOwnedBalls] = useState<string[]>(["default"]);
+  const [currentBall, setCurrentBall] = useState("default");
 
   useEffect(() => {
     const initializeFBInstant = async () => {
@@ -39,10 +43,12 @@ const Index = () => {
         // Start the game
         await fbInstant.startGameAsync();
         
-        // Load backdrop data
+        // Load backdrop and ball data
         const data = await fbInstant.getPlayerDataAsync([
           'ownedBackdrops', 
           'currentBackdrop',
+          'ownedBalls',
+          'currentBall',
           'coins_easy',
           'coins_medium', 
           'coins_hard'
@@ -52,6 +58,12 @@ const Index = () => {
         }
         if (data.currentBackdrop) {
           setCurrentBackdrop(data.currentBackdrop);
+        }
+        if (data.ownedBalls) {
+          setOwnedBalls(data.ownedBalls);
+        }
+        if (data.currentBall) {
+          setCurrentBall(data.currentBall);
         }
         // Load coins from all difficulties (use easy as default)
         const totalCoins = (data.coins_easy || 0) + (data.coins_medium || 0) + (data.coins_hard || 0);
@@ -64,12 +76,16 @@ const Index = () => {
         // Load from localStorage
         const savedBackdrops = localStorage.getItem('ownedBackdrops');
         const savedCurrent = localStorage.getItem('currentBackdrop');
+        const savedBalls = localStorage.getItem('ownedBalls');
+        const savedCurrentBall = localStorage.getItem('currentBall');
         const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
         const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
         const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
         
         if (savedBackdrops) setOwnedBackdrops(JSON.parse(savedBackdrops));
         if (savedCurrent) setCurrentBackdrop(savedCurrent);
+        if (savedBalls) setOwnedBalls(JSON.parse(savedBalls));
+        if (savedCurrentBall) setCurrentBall(savedCurrentBall);
         setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
         setIsLoading(false);
       }
@@ -121,24 +137,72 @@ const Index = () => {
     }
   };
 
+  const handleBallPurchaseWithCoins = (ball: BallSkin) => {
+    const newOwned = [...ownedBalls, ball.id];
+    setOwnedBalls(newOwned);
+    setCurrentCoins(prev => prev - ball.coinPrice);
+    setCurrentBall(ball.id);
+    
+    // Save to storage
+    localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
+    localStorage.setItem('currentBall', ball.id);
+    if (fbInstant.isFBInstant()) {
+      fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: ball.id });
+    }
+  };
+
+  const handleBallPurchaseWithMoney = (ball: BallSkin) => {
+    const newOwned = [...ownedBalls, ball.id];
+    setOwnedBalls(newOwned);
+    setCurrentBall(ball.id);
+    
+    // Save to storage
+    localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
+    localStorage.setItem('currentBall', ball.id);
+    if (fbInstant.isFBInstant()) {
+      fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: ball.id });
+    }
+  };
+
+  const handleSelectBall = (ballId: string) => {
+    setCurrentBall(ballId);
+    localStorage.setItem('currentBall', ballId);
+    if (fbInstant.isFBInstant()) {
+      fbInstant.setPlayerDataAsync({ currentBall: ballId });
+    }
+  };
+
   if (!difficulty) {
     return (
       <>
         <DifficultySelection 
           onSelectDifficulty={setDifficulty} 
-          onOpenShop={() => setShowShop(true)}
+        onOpenShop={() => setShowShop(true)}
+        onOpenBallShop={() => setShowBallShop(true)}
         />
-        {showShop && (
-          <BackdropShop
-            onClose={() => setShowShop(false)}
-            currentCoins={currentCoins}
-            onPurchaseWithCoins={handlePurchaseWithCoins}
-            onPurchaseWithMoney={handlePurchaseWithMoney}
-            ownedBackdrops={ownedBackdrops}
-            onSelectBackdrop={handleSelectBackdrop}
-            currentBackdrop={currentBackdrop}
-          />
-        )}
+      {showShop && (
+        <BackdropShop
+          onClose={() => setShowShop(false)}
+          currentCoins={currentCoins}
+          onPurchaseWithCoins={handlePurchaseWithCoins}
+          onPurchaseWithMoney={handlePurchaseWithMoney}
+          ownedBackdrops={ownedBackdrops}
+          onSelectBackdrop={handleSelectBackdrop}
+          currentBackdrop={currentBackdrop}
+        />
+      )}
+
+      {showBallShop && (
+        <BallShop
+          onClose={() => setShowBallShop(false)}
+          currentCoins={currentCoins}
+          onPurchaseWithCoins={handleBallPurchaseWithCoins}
+          onPurchaseWithMoney={handleBallPurchaseWithMoney}
+          ownedBalls={ownedBalls}
+          onSelectBall={handleSelectBall}
+          currentBall={currentBall}
+        />
+      )}
       </>
     );
   }
