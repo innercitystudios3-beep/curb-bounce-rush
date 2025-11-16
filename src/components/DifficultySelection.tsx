@@ -10,9 +10,10 @@ export type Difficulty = "easy" | "medium" | "hard";
 interface DifficultySelectionProps {
   onSelectDifficulty: (difficulty: Difficulty) => void;
   onOpenShop?: () => void;
+  onOpenBallShop?: () => void;
 }
 
-export const DifficultySelection = ({ onSelectDifficulty, onOpenShop }: DifficultySelectionProps) => {
+export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
 
