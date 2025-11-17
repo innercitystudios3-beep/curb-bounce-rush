@@ -21,8 +21,8 @@ const Index = () => {
   const [currentCoins, setCurrentCoins] = useState(0);
   const [ownedBackdrops, setOwnedBackdrops] = useState<string[]>(["default"]);
   const [currentBackdrop, setCurrentBackdrop] = useState("default");
-  const [ownedBalls, setOwnedBalls] = useState<string[]>(["default"]);
-  const [currentBall, setCurrentBall] = useState("default");
+  const [ownedBalls, setOwnedBalls] = useState<string[]>(["basketball"]);
+  const [currentBall, setCurrentBall] = useState("basketball");
   const [achievements, setAchievements] = useState<Achievement[]>([
     {
       id: "first_1000",

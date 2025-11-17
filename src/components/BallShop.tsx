@@ -44,20 +44,12 @@ export const BallShop = ({
 
   const ballSkins: BallSkin[] = [
     {
-      id: "default",
-      name: "Classic Ball",
-      description: "Original game ball",
-      imageUrl: "/curbball-logo.png",
+      id: "basketball",
+      name: "Orange Gradient Ball",
+      description: "Vibrant and smooth",
+      imageUrl: "/balls/orange-gradient-ball.png",
       coinPrice: 0,
       usdPrice: 0,
-    },
-    {
-      id: "basketball",
-      name: "Basketball",
-      description: "Bounce like a pro hooper",
-      imageUrl: "/balls/basketball.png",
-      coinPrice: 3000,
-      usdPrice: 0.99,
     },
     {
       id: "soccer-ball",
