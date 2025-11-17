@@ -141,10 +141,26 @@ const Index = () => {
           setCurrentBackdrop(data.currentBackdrop);
         }
         if (data.ownedBalls) {
-          setOwnedBalls(data.ownedBalls);
+          let balls = data.ownedBalls;
+          // Remove mystery ball if owned
+          if (balls.includes('mystery-ball')) {
+            balls = balls.filter((b: string) => b !== 'mystery-ball');
+          }
+          setOwnedBalls(balls);
         }
-        if (data.currentBall) {
-          setCurrentBall(data.currentBall);
+        let selectedBall = data.currentBall || 'basketball';
+        // Switch to default if using mystery ball
+        if (selectedBall === 'mystery-ball') {
+          selectedBall = 'basketball';
+        }
+        setCurrentBall(selectedBall);
+        
+        // Save the cleaned data back
+        if (data.currentBall === 'mystery-ball' || (data.ownedBalls && data.ownedBalls.includes('mystery-ball'))) {
+          await fbInstant.setPlayerDataAsync({
+            currentBall: selectedBall,
+            ownedBalls: data.ownedBalls ? data.ownedBalls.filter((b: string) => b !== 'mystery-ball') : ['basketball']
+          });
         }
         if (data.achievements) {
           setAchievements(data.achievements);
@@ -183,8 +199,24 @@ const Index = () => {
         
         if (savedBackdrops) setOwnedBackdrops(JSON.parse(savedBackdrops));
         if (savedCurrent) setCurrentBackdrop(savedCurrent);
-        if (savedBalls) setOwnedBalls(JSON.parse(savedBalls));
-        if (savedCurrentBall) setCurrentBall(savedCurrentBall);
+        if (savedBalls) {
+          let balls = JSON.parse(savedBalls);
+          // Remove mystery ball if owned
+          if (balls.includes('mystery-ball')) {
+            balls = balls.filter((b: string) => b !== 'mystery-ball');
+            localStorage.setItem('ownedBalls', JSON.stringify(balls));
+          }
+          setOwnedBalls(balls);
+        }
+        if (savedCurrentBall) {
+          let selectedBall = savedCurrentBall;
+          // Switch to default if using mystery ball
+          if (selectedBall === 'mystery-ball') {
+            selectedBall = 'basketball';
+            localStorage.setItem('currentBall', selectedBall);
+          }
+          setCurrentBall(selectedBall);
+        }
         if (savedAchievements) setAchievements(JSON.parse(savedAchievements));
         
         if (storedChallenges) {

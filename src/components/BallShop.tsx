@@ -75,14 +75,6 @@ export const BallShop = ({
       coinPrice: 4000,
       usdPrice: 1.49,
     },
-    {
-      id: "mystery-ball",
-      name: "Mystery Ball",
-      description: "Random surprise with every throw!",
-      imageUrl: "/balls/mystery-ball.png",
-      coinPrice: 10000,
-      usdPrice: 2.99,
-    },
     // Achievement-only balls
     {
       id: "golden-ball",
