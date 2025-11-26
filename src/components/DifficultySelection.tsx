@@ -4,6 +4,10 @@ import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Tr
 import { useEffect, useState } from "react";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useNavigate } from "react-router-dom";
+import { ShareButton } from "./ShareButton";
+import { RewardedAdButton } from "./RewardedAdButton";
+
+const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 export type Difficulty = "easy" | "medium" | "hard";
 

@@ -15,6 +15,8 @@ import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
 import { fbInstant } from "@/lib/fbInstantManager";
 
+const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
+
 interface Obstacle {
   id: number;
   type: "car" | "bike";
@@ -1213,12 +1215,12 @@ export const GameCanvas = ({
                 >
                   PLAY AGAIN
                 </Button>
-                {fbInstant.isFBInstant() && (
+                {isFBInstantEnabled && fbInstant.isFBInstant() && (
                   <ShareButton score={score} coins={coinsEarned} />
                 )}
               </div>
               
-              {fbInstant.isFBInstant() && (
+              {isFBInstantEnabled && fbInstant.isFBInstant() && (
                 <button
                   onClick={() => setShowLeaderboard(!showLeaderboard)}
                   className="text-primary underline mt-2"
@@ -1227,7 +1229,7 @@ export const GameCanvas = ({
                 </button>
               )}
               
-              <RewardedAdButton onRewardEarned={handleRewardEarned} />
+              {isFBInstantEnabled && <RewardedAdButton onRewardEarned={handleRewardEarned} />}
             </div>
           </Card>
           <ConfettiEffect />

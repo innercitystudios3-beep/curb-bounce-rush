@@ -16,8 +16,15 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- Facebook Instant Games SDK -->
-    <script src="https://connect.facebook.net/en_US/fbinstant.7.1.js"></script>
+    <!-- Facebook Instant Games SDK (only loaded if enabled) -->
+    <script>
+      // Only load FB Instant SDK if enabled via build configuration
+      if (import.meta.env.VITE_FB_INSTANT === 'true') {
+        const script = document.createElement('script');
+        script.src = 'https://connect.facebook.net/en_US/fbinstant.7.1.js';
+        document.head.appendChild(script);
+      }
+    </script>
   </head>
 
   <body>

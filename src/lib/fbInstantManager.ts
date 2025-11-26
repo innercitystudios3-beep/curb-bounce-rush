@@ -12,9 +12,12 @@ declare global {
 class FBInstantManager {
   private isSupported: boolean = false;
   private isInitialized: boolean = false;
+  private isEnabled: boolean;
 
   constructor() {
-    this.isSupported = typeof window !== 'undefined' && !!window.FBInstant;
+    // Check if FB Instant is enabled via environment variable
+    this.isEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
+    this.isSupported = this.isEnabled && typeof window !== 'undefined' && !!window.FBInstant;
   }
 
   /**

@@ -8,6 +8,9 @@ import { fbInstant } from "@/lib/fbInstantManager";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
 import { soundManager } from "@/lib/soundManager";
 import { toast } from "sonner";
+import { Leaderboard } from "@/components/Leaderboard";
+
+const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 interface DifficultyStats {
   coins: number;
@@ -340,6 +343,24 @@ export default function Stats() {
               </div>
             </Card>
           ))}
+        </div>
+
+        {/* Leaderboards Section */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-foreground">Leaderboards</h2>
+          {isFBInstantEnabled ? (
+            <>
+              <Leaderboard difficulty="easy" />
+              <Leaderboard difficulty="medium" />
+              <Leaderboard difficulty="hard" />
+            </>
+          ) : (
+            <Card className="p-8 text-center">
+              <p className="text-muted-foreground">
+                Leaderboards are available in the Facebook Instant Games version
+              </p>
+            </Card>
+          )}
         </div>
       </div>
       </div>

@@ -9,6 +9,8 @@ import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useToast } from "@/hooks/use-toast";
 
+const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
+
 const Index = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -99,6 +101,54 @@ const Index = () => {
 
   useEffect(() => {
     const initializeFBInstant = async () => {
+      // Only initialize FB Instant if enabled
+      if (!isFBInstantEnabled) {
+        // Load from localStorage for standalone version
+        const storedBackdrops = localStorage.getItem('ownedBackdrops');
+        if (storedBackdrops) {
+          setOwnedBackdrops(JSON.parse(storedBackdrops));
+        }
+        const storedCurrentBackdrop = localStorage.getItem('currentBackdrop');
+        if (storedCurrentBackdrop) {
+          setCurrentBackdrop(storedCurrentBackdrop);
+        }
+        
+        const storedBalls = localStorage.getItem('ownedBalls');
+        if (storedBalls) {
+          setOwnedBalls(JSON.parse(storedBalls));
+        }
+        const storedCurrentBall = localStorage.getItem('currentBall');
+        if (storedCurrentBall) {
+          setCurrentBall(storedCurrentBall);
+        }
+        
+        const storedAchievements = localStorage.getItem('achievements');
+        if (storedAchievements) {
+          setAchievements(JSON.parse(storedAchievements));
+        }
+        
+        const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
+        const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
+        const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
+        
+        const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
+        if (storedChallenges) {
+          const parsedChallenges = JSON.parse(storedChallenges) as DailyChallenge[];
+          const now = Date.now();
+          if (parsedChallenges[0]?.expiresAt < now) {
+            const newChallenges = initializeDailyChallenges();
+            setDailyChallenges(newChallenges);
+            localStorage.setItem('curbball_dailyChallenges', JSON.stringify(newChallenges));
+          } else {
+            setDailyChallenges(parsedChallenges);
+          }
+        }
+        
+        setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         // Initialize FBInstant SDK
         await fbInstant.initializeAsync();
@@ -211,7 +261,7 @@ const Index = () => {
     setIsLoading(false);
   };
 
-  if (isLoading) {
+  if (isLoading && isFBInstantEnabled) {
     return <FBInstantLoading onComplete={handleLoadingComplete} />;
   }
 
