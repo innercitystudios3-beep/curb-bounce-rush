@@ -52,14 +52,6 @@ export const BallShop = ({
       usdPrice: 0,
     },
     {
-      id: "basketball",
-      name: "Basketball",
-      description: "Bounce like a pro hooper",
-      imageUrl: "/balls/basketball.png",
-      coinPrice: 3000,
-      usdPrice: 0.99,
-    },
-    {
       id: "soccer-ball",
       name: "Soccer Ball",
       description: "Score goals on the curb",
