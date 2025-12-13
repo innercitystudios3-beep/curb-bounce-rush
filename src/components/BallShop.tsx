@@ -47,7 +47,7 @@ export const BallShop = ({
       id: "default",
       name: "Classic Ball",
       description: "Original game ball",
-      imageUrl: "/curbball-logo.png",
+      imageUrl: "/balls/basketball.png",
       coinPrice: 0,
       usdPrice: 0,
     },
