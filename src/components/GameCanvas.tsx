@@ -78,7 +78,9 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
+  const ballPosition = useRef({ x: 50, y: 80 });
+  const ballVelocity = useRef({ x: 0, y: 0 });
+  const [ballRenderPosition, setBallRenderPosition] = useState({ x: 50, y: 80 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
@@ -93,9 +95,180 @@ export const GameCanvas = ({
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [swipeAngle, setSwipeAngle] = useState(0);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
+
+  // Physics constants
+  const GRAVITY = 0.09;
+  const FRICTION = 0.99;
+  const RESTITUTION = 0.8; // Bounciness
+
+  // Game loop for physics simulation
+  useEffect(() => {
+    const gameLoop = () => {
+      if (ballPhase !== 'ready') {
+        let newPos = { ...ballPosition.current };
+        let newVel = { ...ballVelocity.current };
+
+        // Update position and velocity
+        newPos.x += newVel.x;
+        newPos.y -= newVel.y;
+        newVel.y -= GRAVITY;
+        newVel.x *= FRICTION;
+
+        // Curb collision detection
+        if (newPos.y <= 5) {
+          newPos.y = 5;
+          newVel.y = -newVel.y * RESTITUTION;
+          handleCurbHit();
+        }
+
+        // Boundary checks
+        if (newPos.x < 0 || newPos.x > 100) {
+          newVel.x = -newVel.x;
+        }
+
+        // Check for obstacle collision
+        const obstacleHit = obstacles.some(obs =>
+          Math.abs(obs.position - newPos.x) < 5 && Math.abs(newPos.y - 10) < 5
+        );
+
+        if (obstacleHit) {
+          setBallPhase('missed');
+          soundManager.playFail();
+          setConsecutiveHits(0);
+        }
+
+        ballPosition.current = newPos;
+        ballVelocity.current = newVel;
+        setBallRenderPosition(newPos);
+
+        // Reset ball when it stops bouncing or goes off-screen
+        if (newPos.y < -20 || (Math.abs(newVel.x) < 0.01 && Math.abs(newVel.y) < GRAVITY && newPos.y <= 5.1)) {
+          setBallPhase('ready');
+          setIsBallFlying(false);
+          setIsThrowing(false);
+          setPower(0);
+          ballPosition.current = { x: 50, y: 80 };
+          ballVelocity.current = { x: 0, y: 0 };
+          setBallRenderPosition({ x: 50, y: 80 });
+        }
+      }
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(gameLoop);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [ballPhase, obstacles, handleCurbHit]);
+
+  const handleCurbHit = useCallback(() => {
+    setBallPhase('hit');
+    soundManager.playImpact();
+
+    const success = calculateSuccess(power);
+
+    const collectedCoin = curbCoins.find(
+      coin => !coin.collected && Math.abs(coin.position - ballPosition.current.x) < 8
+    );
+
+    const bullseyeHit = Math.abs(bullseyeTarget.position - ballPosition.current.x) < 6;
+
+    let coinBonus = 0;
+    if (collectedCoin) {
+      coinBonus = collectedCoin.value;
+      soundManager.playCoinCollect();
+      setCurbCoins(prev =>
+        prev.map(c => (c.id === collectedCoin.id ? { ...c, collected: true } : c))
+      );
+      setTimeout(() => {
+        setCurbCoins(prev => prev.filter(c => c.id !== collectedCoin.id));
+      }, 500);
+    }
+
+    if (success) {
+      setBallPhase('bouncing');
+      soundManager.playSuccess();
+
+      let pointsEarned = 10;
+      let bullseyeBonus = 0;
+
+      if (bullseyeHit) {
+        bullseyeBonus = 50;
+        pointsEarned += bullseyeBonus;
+        soundManager.playLevelUp();
+        if (onChallengeProgress) {
+          onChallengeProgress('bullseye_5', consecutiveHits + 1);
+        }
+      }
+
+      const newScore = score + pointsEarned;
+      setScore(newScore);
+
+      if (onAchievementProgress) {
+        onAchievementProgress('first_1000', newScore);
+      }
+      if (onChallengeProgress) {
+        onChallengeProgress('score_500', newScore);
+      }
+
+      const previousHundred = Math.floor(score / 100);
+      const currentHundred = Math.floor(newScore / 100);
+      const reachedMilestone = currentHundred > previousHundred;
+
+      const earnedCoins = calculateCoinsEarned(power, true) + coinBonus;
+      setCoins(prev => prev + earnedCoins);
+      setCoinsEarned(prev => prev + earnedCoins);
+
+      setFloatingCoinAmount(earnedCoins);
+      setShowFloatingCoins(true);
+      spawnCoinParticles(earnedCoins);
+
+      const newStreak = consecutiveHits + 1;
+      setConsecutiveHits(newStreak);
+
+      if (onAchievementProgress) {
+        onAchievementProgress('streak_10', newStreak);
+      }
+      if (onChallengeProgress) {
+        onChallengeProgress('perfect_streak', newStreak);
+      }
+
+      setShowConfetti(true);
+
+      if (reachedMilestone) {
+        soundManager.playMilestone();
+        toast.success(`🎉 ${currentHundred * 100} Points Milestone!`, {
+          description: `Amazing progress! Keep it up!`,
+        });
+        setTimeout(() => setShowConfetti(true), 100);
+      }
+
+      const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
+      const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
+      toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
+        description: `Score: ${newScore} | Streak: ${newStreak}`,
+      });
+
+      setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
+    } else {
+      setBallPhase('missed');
+      soundManager.playFail();
+      setConsecutiveHits(0);
+      if (onChallengeProgress) {
+        onChallengeProgress('perfect_streak', 0);
+      }
+      toast.error("Miss! Ball didn't bounce back", {
+        description: "Try timing your power better. Streak reset!",
+      });
+    }
+  }, [power, score, consecutiveHits, curbCoins, bullseyeTarget, onChallengeProgress, onAchievementProgress, calculateCoinsEarned, spawnCoinParticles]);
   
   // Difficulty settings
   const difficultySettings = {
@@ -449,233 +622,27 @@ export const GameCanvas = ({
   };
 
   const throwBall = (throwPower: number, angle: number = 0) => {
-    if (isThowing || isBallFlying || !gameStarted) return;
+    if (ballPhase !== 'ready' || !gameStarted) return;
 
     setIsThrowing(true);
     setIsBallFlying(true);
-    const success = calculateSuccess(throwPower);
-    
-    // Apply horizontal movement based on angle
-    const angleInfluence = Math.sin(angle * Math.PI / 180) * 15;
-    const targetHorizontalPosition = Math.max(10, Math.min(90, ballHorizontalPosition + angleInfluence));
 
-    // Play throw sound
+    const startPosition = { x: ballHorizontalPosition, y: 80 };
+    ballPosition.current = startPosition;
+    setBallRenderPosition(startPosition);
+
+    // Convert power and angle to initial velocity
+    const powerMultiplier = 0.35; // Adjusted for better feel
+    const angleInRadians = angle * (Math.PI / 180);
+    
+    const initialVelocity = {
+      x: Math.sin(angleInRadians) * throwPower * powerMultiplier,
+      y: (Math.cos(angleInRadians) * throwPower * powerMultiplier) + 2, // Add vertical boost
+    };
+    ballVelocity.current = initialVelocity;
+
+    setBallPhase('flying'); // This will start the game loop
     soundManager.playThrow();
-
-    // Check for collision with obstacles during flight
-    const checkObstacleCollision = () => {
-      return obstacles.some(obs => {
-        const obstacleCenterX = obs.position + (obs.type === 'car' ? 10 : 6); // Approximate center
-        const ballX = ballHorizontalPosition;
-        const distance = Math.abs(obstacleCenterX - ballX);
-        return distance < 8; // Collision threshold
-      });
-    };
-
-    // Phase 1: Ball flies to curb - speed based on power
-    // Weak throws (0-40): slower, lower arc
-    // Medium throws (40-70): moderate speed
-    // Strong throws (70-100): faster, higher arc
-    
-    const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
-    const arcHeight = throwPower < 40 ? 60 : throwPower < 70 ? 75 : 85; // max y position during arc
-    
-    setBallPhase('flying');
-    const startX = ballHorizontalPosition;
-    setBallPosition({ x: startX, y: 80 });
-    
-    // Animate ball arc with horizontal movement based on angle
-    const startTime = Date.now();
-    const animateBallFlight = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / flightDuration, 1);
-      
-      // Parabolic arc calculation
-      const yProgress = 1 - Math.pow(1 - progress, 2); // Ease out quad for y
-      const arcY = 80 - (yProgress * 75) + (Math.sin(progress * Math.PI) * (arcHeight - 80));
-      
-      // Smooth horizontal movement from start to target
-      const currentX = startX + (targetHorizontalPosition - startX) * progress;
-      
-      setBallPosition({ x: currentX, y: arcY });
-      setBallHorizontalPosition(currentX);
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateBallFlight);
-      }
-    };
-    
-    requestAnimationFrame(animateBallFlight);
-    
-    setTimeout(() => {
-      // Check for collision mid-flight
-      if (checkObstacleCollision()) {
-        // Ball hits obstacle
-        setBallPhase('missed');
-        soundManager.playFail();
-        setConsecutiveHits(0);
-        toast.error("Hit an obstacle!", {
-          description: "Ball was blocked! Streak reset!",
-        });
-        
-        setTimeout(() => {
-          setBallPosition({ x: targetHorizontalPosition, y: 80 });
-          setBallPhase('ready');
-          setIsBallFlying(false);
-          setIsThrowing(false);
-          setPower(0);
-        }, 600);
-        return;
-      }
-      
-      setBallPosition({ x: targetHorizontalPosition, y: 5 }); // Move to curb at target horizontal position
-    }, flightDuration * 0.6);
-
-    setTimeout(() => {
-      // Phase 2: Ball hits curb (0.3s)
-      setBallPhase('hit');
-      soundManager.playImpact();
-      
-      // Check for coin collection at target position
-      const collectedCoin = curbCoins.find(
-        coin => !coin.collected && Math.abs(coin.position - targetHorizontalPosition) < 8
-      );
-      
-      // Check for bullseye target hit
-      const bullseyeHit = Math.abs(bullseyeTarget.position - targetHorizontalPosition) < 6;
-      
-      let coinBonus = 0;
-      if (collectedCoin) {
-        coinBonus = collectedCoin.value;
-        soundManager.playCoinCollect(); // Play coin collection sound
-        setCurbCoins(prev => 
-          prev.map(c => c.id === collectedCoin.id ? { ...c, collected: true } : c)
-        );
-        
-        // Remove collected coin after animation
-        setTimeout(() => {
-          setCurbCoins(prev => prev.filter(c => c.id !== collectedCoin.id));
-        }, 500);
-      }
-      
-      setTimeout(() => {
-        if (success) {
-          // Phase 3: Ball bounces back successfully (0.8s)
-          setBallPhase('bouncing');
-          setBallPosition({ x: targetHorizontalPosition, y: 80 }); // Bounce back to target position
-          soundManager.playSuccess();
-          
-          setTimeout(() => {
-            let pointsEarned = 10;
-            let bullseyeBonus = 0;
-            
-            // Award bullseye bonus
-            if (bullseyeHit) {
-              bullseyeBonus = 50;
-              pointsEarned += bullseyeBonus;
-              soundManager.playLevelUp(); // Play special sound for bullseye
-              
-              // Track challenge progress for bullseye hits
-              if (onChallengeProgress) {
-                onChallengeProgress('bullseye_5', consecutiveHits + 1);
-              }
-            }
-            
-            const newScore = score + pointsEarned;
-            setScore(newScore);
-            
-            // Track achievement progress for high score
-            if (onAchievementProgress) {
-              onAchievementProgress('first_1000', newScore);
-            }
-            
-            // Track challenge progress for score
-            if (onChallengeProgress) {
-              onChallengeProgress('score_500', newScore);
-            }
-            
-            // Check for 100 point milestone celebration
-            const previousHundred = Math.floor(score / 100);
-            const currentHundred = Math.floor(newScore / 100);
-            const reachedMilestone = currentHundred > previousHundred;
-            
-            // Calculate and award coins (including coin bonus)
-            const earnedCoins = calculateCoinsEarned(throwPower, true) + coinBonus;
-            setCoins(prev => prev + earnedCoins);
-            setCoinsEarned(prev => prev + earnedCoins);
-            
-            // Show floating coins animation
-            setFloatingCoinAmount(earnedCoins);
-            setShowFloatingCoins(true);
-            spawnCoinParticles(earnedCoins);
-            
-            // Update streak
-            const newStreak = consecutiveHits + 1;
-            setConsecutiveHits(newStreak);
-            
-            // Track achievement and challenge progress for streak
-            if (onAchievementProgress) {
-              onAchievementProgress('streak_10', newStreak);
-            }
-            if (onChallengeProgress) {
-              onChallengeProgress('perfect_streak', newStreak);
-            }
-            
-            setShowConfetti(true);
-            
-            // Play milestone celebration if reached 100, 200, 300, etc.
-            if (reachedMilestone) {
-              soundManager.playMilestone();
-              toast.success(`🎉 ${currentHundred * 100} Points Milestone!`, {
-                description: `Amazing progress! Keep it up!`,
-              });
-              setTimeout(() => setShowConfetti(true), 100);
-            }
-            
-            const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
-            const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
-            toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
-              description: `Score: ${newScore} | Streak: ${consecutiveHits + 1}`,
-            });
-
-            setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
-            
-            // Reset
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
-          }, 800);
-          
-        } else {
-          // Phase 3: Ball misses and falls (0.6s)
-          setBallPhase('missed');
-          setBallPosition({ x: targetHorizontalPosition, y: -20 }); // Fall down at target position
-          soundManager.playFail();
-          
-          // Reset streak on miss
-          setConsecutiveHits(0);
-          
-          // Reset challenge progress for streak on miss
-          if (onChallengeProgress) {
-            onChallengeProgress('perfect_streak', 0);
-          }
-          
-          setTimeout(() => {
-            toast.error("Miss! Ball didn't bounce back", {
-              description: "Try timing your power better. Streak reset!",
-            });
-            
-            // Reset
-            setBallPosition({ x: targetHorizontalPosition, y: 80 });
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
-          }, 600);
-        }
-      }, 300);
-    }, flightDuration * 0.6 + 800);
   };
 
   const restartGame = async () => {
