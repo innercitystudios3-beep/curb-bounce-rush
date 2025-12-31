@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,11 +40,41 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     logStep("Session retrieved", { 
       status: session.payment_status, 
-      metadata: session.metadata 
+      metadata: session.metadata,
+      customerEmail: session.customer_details?.email
     });
 
     if (session.payment_status === "paid") {
       logStep("Payment verified successfully");
+
+      // Save customer email to database if available
+      const customerEmail = session.customer_details?.email;
+      if (customerEmail) {
+        try {
+          const supabaseClient = createClient(
+            Deno.env.get("SUPABASE_URL") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+          );
+
+          const { error: insertError } = await supabaseClient
+            .from("customer_emails")
+            .upsert({
+              email: customerEmail,
+              item_id: session.metadata?.item_id,
+              item_type: session.metadata?.item_type,
+              stripe_session_id: sessionId,
+            }, { onConflict: 'email' });
+
+          if (insertError) {
+            logStep("Failed to save customer email", { error: insertError.message });
+          } else {
+            logStep("Customer email saved successfully", { email: customerEmail });
+          }
+        } catch (dbError) {
+          logStep("Database error saving email", { error: String(dbError) });
+        }
+      }
+
       return new Response(JSON.stringify({
         verified: true,
         itemId: session.metadata?.item_id,
