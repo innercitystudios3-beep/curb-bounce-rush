@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customer_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          item_id: string | null
+          item_type: string | null
+          stripe_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          item_id?: string | null
+          item_type?: string | null
+          stripe_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          item_id?: string | null
+          item_type?: string | null
+          stripe_session_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
