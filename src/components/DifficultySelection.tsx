@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useNavigate } from "react-router-dom";
@@ -17,9 +17,10 @@ interface DifficultySelectionProps {
   onOpenBallShop?: () => void;
   onOpenAchievements?: () => void;
   onOpenDailyChallenges?: () => void;
+  onOpenRestorePurchases?: () => void;
 }
 
-export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements, onOpenDailyChallenges }: DifficultySelectionProps) => {
+export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements, onOpenDailyChallenges, onOpenRestorePurchases }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
 
@@ -166,6 +167,19 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
               <p className="text-sm text-muted-foreground">
                 Unlock exclusive rewards and track your progress!
               </p>
+
+              {/* Restore Purchases Button */}
+              {onOpenRestorePurchases && (
+                <Button
+                  onClick={onOpenRestorePurchases}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Restore Purchases
+                </Button>
+              )}
             </div>
           )}
         </div>
