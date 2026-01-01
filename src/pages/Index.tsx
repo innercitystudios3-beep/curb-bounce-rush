@@ -6,6 +6,7 @@ import { BackdropShop, Backdrop } from "@/components/BackdropShop";
 import { BallShop, BallSkin } from "@/components/BallShop";
 import { Achievements, Achievement } from "@/components/Achievements";
 import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
+import { RestorePurchases } from "@/components/RestorePurchases";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useToast } from "@/hooks/use-toast";
 import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
@@ -21,6 +22,7 @@ const Index = () => {
   const [showBallShop, setShowBallShop] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showDailyChallenges, setShowDailyChallenges] = useState(false);
+  const [showRestorePurchases, setShowRestorePurchases] = useState(false);
   const [currentCoins, setCurrentCoins] = useState(0);
   const [ownedBackdrops, setOwnedBackdrops] = useState<string[]>(["default"]);
   const [currentBackdrop, setCurrentBackdrop] = useState("default");
@@ -477,11 +479,34 @@ const Index = () => {
       <>
         <DifficultySelection 
           onSelectDifficulty={setDifficulty} 
-        onOpenShop={() => setShowShop(true)}
-        onOpenBallShop={() => setShowBallShop(true)}
-        onOpenAchievements={() => setShowAchievements(true)}
-        onOpenDailyChallenges={() => setShowDailyChallenges(true)}
+          onOpenShop={() => setShowShop(true)}
+          onOpenBallShop={() => setShowBallShop(true)}
+          onOpenAchievements={() => setShowAchievements(true)}
+          onOpenDailyChallenges={() => setShowDailyChallenges(true)}
+          onOpenRestorePurchases={() => setShowRestorePurchases(true)}
         />
+
+        <RestorePurchases
+          isOpen={showRestorePurchases}
+          onClose={() => setShowRestorePurchases(false)}
+          ownedBalls={ownedBalls}
+          ownedBackdrops={ownedBackdrops}
+          onRestoreBalls={(balls) => {
+            setOwnedBalls(balls);
+            localStorage.setItem('ownedBalls', JSON.stringify(balls));
+            if (fbInstant.isFBInstant()) {
+              fbInstant.setPlayerDataAsync({ ownedBalls: balls });
+            }
+          }}
+          onRestoreBackdrops={(backdrops) => {
+            setOwnedBackdrops(backdrops);
+            localStorage.setItem('ownedBackdrops', JSON.stringify(backdrops));
+            if (fbInstant.isFBInstant()) {
+              fbInstant.setPlayerDataAsync({ ownedBackdrops: backdrops });
+            }
+          }}
+        />
+
       {showShop && (
         <BackdropShop
           onClose={() => setShowShop(false)}
