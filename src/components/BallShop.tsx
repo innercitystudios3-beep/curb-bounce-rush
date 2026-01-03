@@ -320,12 +320,20 @@ export const BallShop = ({
           </div>
 
           <div className="flex items-center justify-between mt-4">
-            <a
-              href="/privacy"
-              className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
-            >
-              Privacy Policy
-            </a>
+            <div className="flex gap-3">
+              <a
+                href="/privacy"
+                className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+              >
+                Privacy Policy
+              </a>
+              <a
+                href="/terms"
+                className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+              >
+                Terms of Service
+              </a>
+            </div>
             <Button variant="outline" onClick={onClose}>
               Close Shop
             </Button>

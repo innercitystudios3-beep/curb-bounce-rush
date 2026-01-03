@@ -163,6 +163,15 @@ const PrivacyPolicy = () => {
             </section>
           </div>
         </div>
+
+        <div className="text-center mt-6">
+          <a
+            href="/terms"
+            className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+          >
+            View Terms of Service
+          </a>
+        </div>
       </div>
     </div>
   );
