@@ -230,6 +230,16 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
             );
           })}
         </div>
+
+        {/* Footer with Privacy Policy */}
+        <div className="text-center mt-8 pt-4 border-t border-border/30">
+          <a
+            href="/privacy"
+            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </div>
   );

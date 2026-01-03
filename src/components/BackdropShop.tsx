@@ -293,7 +293,13 @@ export const BackdropShop = ({
             })}
           </div>
 
-          <div className="flex justify-end mt-4">
+          <div className="flex items-center justify-between mt-4">
+            <a
+              href="/privacy"
+              className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+            >
+              Privacy Policy
+            </a>
             <Button variant="outline" onClick={onClose}>
               Close Shop
             </Button>
