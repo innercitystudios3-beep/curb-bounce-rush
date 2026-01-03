@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy, RefreshCw } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy, RefreshCw, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LocalLeaderboard } from "./LocalLeaderboard";
+import { ProfileModal, getProfile } from "./ProfileModal";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -20,6 +21,15 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const profile = getProfile();
+    if (profile) {
+      setProfileName(profile.firstName);
+    }
+  }, [showProfile]);
 
   useEffect(() => {
     const loadCoins = () => {
@@ -68,8 +78,16 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
       <div className="max-w-4xl w-full">
         <div className="text-center mb-8">
-          {/* Stats & Leaderboard Buttons */}
-          <div className="flex justify-end gap-2 mb-4">
+          {/* Stats, Leaderboard & Profile Buttons */}
+          <div className="flex justify-end gap-2 mb-4 flex-wrap">
+            <Button
+              onClick={() => setShowProfile(true)}
+              variant="outline"
+              className="gap-2"
+            >
+              <User className="w-4 h-4" />
+              {profileName || "Profile"}
+            </Button>
             <Button
               onClick={() => setShowLeaderboard(true)}
               variant="outline"
@@ -263,6 +281,11 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
             <LocalLeaderboard showTabs={true} />
           </div>
         </div>
+      )}
+
+      {/* Profile Modal */}
+      {showProfile && (
+        <ProfileModal onClose={() => setShowProfile(false)} />
       )}
     </div>
   );

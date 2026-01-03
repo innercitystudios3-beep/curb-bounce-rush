@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trophy, Medal, Award, User } from "lucide-react";
+import { Trophy, Medal, Award, User, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getProfile, UserProfile } from "./ProfileModal";
+import { US_STATES } from "@/lib/usStates";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -88,7 +90,26 @@ const getRankIcon = (rank: number) => {
   }
 };
 
+const getStateName = (stateCode: string): string => {
+  const state = US_STATES.find(s => s.code === stateCode);
+  return state ? state.name : stateCode;
+};
+
+const getLocationString = (profile: UserProfile | null): string | null => {
+  if (!profile) return null;
+  const parts: string[] = [];
+  if (profile.city) parts.push(profile.city);
+  if (profile.state) parts.push(profile.state);
+  return parts.length > 0 ? parts.join(", ") : null;
+};
+
 const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    setProfile(getProfile());
+  }, []);
+
   if (entries.length === 0) {
     return (
       <p className="text-muted-foreground text-center py-8">
@@ -96,6 +117,9 @@ const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => {
       </p>
     );
   }
+
+  const displayName = profile?.firstName || "You";
+  const location = getLocationString(profile);
 
   return (
     <div className="space-y-2">
@@ -110,13 +134,22 @@ const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => {
           <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
             <User className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1">
-            <p className="font-medium">You</p>
-            <p className="text-xs text-muted-foreground">
-              {formatDate(entry.date)} • {entry.difficulty.charAt(0).toUpperCase() + entry.difficulty.slice(1)}
-            </p>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate">{displayName}</p>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              {location && (
+                <>
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{location}</span>
+                  <span className="mx-1">•</span>
+                </>
+              )}
+              <span>{formatDate(entry.date)}</span>
+              <span className="mx-1">•</span>
+              <span>{entry.difficulty.charAt(0).toUpperCase() + entry.difficulty.slice(1)}</span>
+            </div>
           </div>
-          <div className="font-bold text-primary text-lg">
+          <div className="font-bold text-primary text-lg flex-shrink-0">
             {entry.score.toLocaleString()}
           </div>
         </div>
