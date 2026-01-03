@@ -149,18 +149,6 @@ export const GameCanvas = ({
     }
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
-  // Start/stop background music based on game state
-  useEffect(() => {
-    if (gameStarted && !gameEnded) {
-      soundManager.startBackgroundMusic();
-    } else {
-      soundManager.stopBackgroundMusic();
-    }
-    
-    return () => {
-      soundManager.stopBackgroundMusic();
-    };
-  }, [gameStarted, gameEnded]);
 
   // Timer countdown
   useEffect(() => {
