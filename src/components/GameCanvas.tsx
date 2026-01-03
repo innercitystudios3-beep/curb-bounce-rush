@@ -8,10 +8,10 @@ import { FloatingCoins } from "./FloatingCoins";
 import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
+import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
-import { Volume2, VolumeX } from "lucide-react";
 
 interface Obstacle {
   id: number;
@@ -78,7 +78,7 @@ export const GameCanvas = ({
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
-  const [isMuted, setIsMuted] = useState(soundManager.getMuted());
+  
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
   const [gameEnded, setGameEnded] = useState(false);
@@ -148,6 +148,19 @@ export const GameCanvas = ({
       onCoinsChange(coins);
     }
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
+
+  // Start/stop background music based on game state
+  useEffect(() => {
+    if (gameStarted && !gameEnded) {
+      soundManager.startBackgroundMusic();
+    } else {
+      soundManager.stopBackgroundMusic();
+    }
+    
+    return () => {
+      soundManager.stopBackgroundMusic();
+    };
+  }, [gameStarted, gameEnded]);
 
   // Timer countdown
   useEffect(() => {
@@ -709,11 +722,6 @@ export const GameCanvas = ({
     setCoins(coins + amount);
   };
 
-  const toggleMute = () => {
-    const newMutedState = soundManager.toggleMute();
-    setIsMuted(newMutedState);
-    soundManager.playClick();
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1069,16 +1077,8 @@ export const GameCanvas = ({
           )}
         </div>
 
-        {/* Sound toggle button */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggleMute}
-          className="absolute top-4 right-24 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-          aria-label={isMuted ? "Unmute sounds" : "Mute sounds"}
-        >
-          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </Button>
+        {/* Sound toggle buttons */}
+        <SoundToggle className="absolute top-4 right-24 z-20" />
 
         {/* Restart button */}
         <Button
