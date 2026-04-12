@@ -20,6 +20,7 @@ interface LocalLeaderboardProps {
 const STORAGE_KEY = "curbball_leaderboard";
 const MAX_ENTRIES = 10;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const saveScore = (score: number, difficulty: "easy" | "medium" | "hard") => {
   const stored = localStorage.getItem(STORAGE_KEY);
   const entries: LeaderboardEntry[] = stored ? JSON.parse(stored) : [];
@@ -52,6 +53,7 @@ export const saveScore = (score: number, difficulty: "easy" | "medium" | "hard")
   return newRank !== -1 && newRank < MAX_ENTRIES ? newRank + 1 : null;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const getScores = (difficulty?: "easy" | "medium" | "hard"): LeaderboardEntry[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return [];
@@ -165,16 +167,12 @@ export const LocalLeaderboard = ({ difficulty, showTabs = true }: LocalLeaderboa
   );
 
   useEffect(() => {
-    loadScores();
-  }, [selectedDifficulty]);
-
-  const loadScores = () => {
     if (selectedDifficulty === "all") {
       setEntries(getScores());
     } else {
       setEntries(getScores(selectedDifficulty));
     }
-  };
+  }, [selectedDifficulty]);
 
   if (!showTabs || difficulty) {
     return (
@@ -201,7 +199,7 @@ export const LocalLeaderboard = ({ difficulty, showTabs = true }: LocalLeaderboa
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs value={selectedDifficulty} onValueChange={(v) => setSelectedDifficulty(v as any)}>
+        <Tabs value={selectedDifficulty} onValueChange={(v) => setSelectedDifficulty(v as "easy" | "medium" | "hard" | "all")}>
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="easy">Easy</TabsTrigger>
