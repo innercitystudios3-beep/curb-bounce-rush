@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
@@ -89,9 +89,21 @@ export const GameCanvas = ({
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const bullseyeHitsRef = useRef(0); // Dedicated counter for bullseye challenge
   const [swipeAngle, setSwipeAngle] = useState(0);
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
+
+  // Memoised star positions so they don't re-randomise on every render
+  const starPositions = useMemo(() =>
+    Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      delay: Math.random() * 3,
+      opacity: 0.3 + Math.random() * 0.7,
+    })), []);
   
   // Difficulty settings
   const difficultySettings = {
@@ -414,8 +426,7 @@ export const GameCanvas = ({
     
     // Only throw if swipe is significant (minimum distance)
     if (distance > 30) {
-      soundManager.playThrow();
-      throwBall(swipePower, angle);
+      throwBall(swipePower, angle); // playThrow() is called inside throwBall
     }
     
     touchStartRef.current = null;
@@ -440,7 +451,7 @@ export const GameCanvas = ({
     const checkObstacleCollision = () => {
       return obstacles.some(obs => {
         const obstacleCenterX = obs.position + (obs.type === 'car' ? 10 : 6); // Approximate center
-        const ballX = ballHorizontalPosition;
+        const ballX = targetHorizontalPosition; // Use landing position, not starting position
         const distance = Math.abs(obstacleCenterX - ballX);
         return distance < 8; // Collision threshold
       });
@@ -548,16 +559,24 @@ export const GameCanvas = ({
               bullseyeBonus = 50;
               pointsEarned += bullseyeBonus;
               soundManager.playLevelUp(); // Play special sound for bullseye
-              
-              // Track challenge progress for bullseye hits
+
+              // Track challenge progress for bullseye hits (dedicated counter)
+              bullseyeHitsRef.current++;
               if (onChallengeProgress) {
-                onChallengeProgress('bullseye_5', consecutiveHits + 1);
+                onChallengeProgress('bullseye_5', bullseyeHitsRef.current);
               }
             }
             
             const newScore = score + pointsEarned;
             setScore(newScore);
-            
+
+            // Progress level every 100 points — increases difficulty within the game
+            const newLevel = Math.floor(newScore / 100) + 1;
+            if (newLevel > level) {
+              setLevel(newLevel);
+              toast.success(`Level ${newLevel}!`, { description: "The challenge intensifies!" });
+            }
+
             // Track achievement progress for high score
             if (onAchievementProgress) {
               onAchievementProgress('first_1000', newScore);
@@ -568,6 +587,15 @@ export const GameCanvas = ({
               onChallengeProgress('score_500', newScore);
             }
             
+            // Trigger win effect when player first hits 100 points
+            if (newScore >= 100 && !gameWon) {
+              setGameWon(true);
+              soundManager.playMilestone();
+              toast.success("🏆 Win Effect Unlocked!", {
+                description: "You hit 100 points! Keep going for a high score!",
+              });
+            }
+
             // Check for 100 point milestone celebration
             const previousHundred = Math.floor(score / 100);
             const currentHundred = Math.floor(newScore / 100);
@@ -654,22 +682,24 @@ export const GameCanvas = ({
 
   const restartGame = () => {
     soundManager.playClick();
-    
+
     // Update high score
     if (score > highScore) {
       setHighScore(score);
     }
-    
+
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
-    
+
     setScore(0);
     setLevel(1);
     setCoinsEarned(0);
     setConsecutiveHits(0);
+    bullseyeHitsRef.current = 0;
     setBallHorizontalPosition(50);
     setCurbCoins([]);
     setGameEnded(false);
+    setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
@@ -728,6 +758,14 @@ export const GameCanvas = ({
       "default": "/backgrounds/east-high-school.png",
       "linden-mural": "/backgrounds/linden-mural.png",
       "ohio-tower": "/backgrounds/ohio-tower.png",
+      "dispatch-building": "/backgrounds/dispatch-building.png",
+      "linden-mckinley-school": "/backgrounds/linden-mckinley-school.png",
+      "backdrop-3": "/backgrounds/backdrop-3.png",
+      "backdrop-4": "/backgrounds/backdrop-4.png",
+      "backdrop-5": "/backgrounds/backdrop-5.png",
+      "backdrop-6": "/backgrounds/backdrop-6.png",
+      "poindexter-village": "/backgrounds/poindexter-village.png",
+      "lincoln-theatre": "/backgrounds/lincoln-theatre.png",
     };
     return backdropMap[backdropImage] || backdropMap["default"];
   };
@@ -754,32 +792,40 @@ export const GameCanvas = ({
               <div className="flex items-start gap-3">
                 <div className="text-2xl">🎯</div>
                 <div>
-                  <h3 className="font-semibold text-lg">How to Play</h3>
-                  <p className="text-sm">Click and drag to aim, then release to throw the ball at the curb</p>
+                  <h3 className="font-semibold text-lg">Aim & Throw</h3>
+                  <p className="text-sm">Use ← / → buttons (or arrow keys) to aim, then <strong>hold the throw button</strong> to charge power and release to throw. On mobile, swipe up to throw!</p>
                 </div>
               </div>
-              
+
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚡</div>
+                <div>
+                  <h3 className="font-semibold text-lg">Perfect Power</h3>
+                  <p className="text-sm">Release in the <strong>green zone (60–80)</strong> for the best chance of a successful bounce. Watch the power meter!</p>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3">
                 <div className="text-2xl">💰</div>
                 <div>
                   <h3 className="font-semibold text-lg">Collect Coins</h3>
-                  <p className="text-sm">Hit the glowing coins on the curb for bonus points</p>
+                  <p className="text-sm">Hit the glowing coins on the curb for bonus points and currency to spend in the shop.</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-3">
                 <div className="text-2xl">⏱️</div>
                 <div>
                   <h3 className="font-semibold text-lg">Beat the Clock</h3>
-                  <p className="text-sm">Score 100 points in 3 minutes to win!</p>
+                  <p className="text-sm">Score as many points as possible in 3 minutes. Hit 100 points to unlock the <strong>Win Effect</strong>!</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-3">
-                <div className="text-2xl">🎪</div>
+                <div className="text-2xl">🚗</div>
                 <div>
                   <h3 className="font-semibold text-lg">Avoid Obstacles</h3>
-                  <p className="text-sm">Watch out for moving obstacles that block your shots</p>
+                  <p className="text-sm">Watch out for moving cars and bikes that block your throws. The game gets harder every 100 points!</p>
                 </div>
               </div>
             </div>
@@ -800,15 +846,15 @@ export const GameCanvas = ({
       {/* Stars effect - only show when won */}
       {gameWon && (
         <div className="absolute inset-0 pointer-events-none">
-          {[...Array(100)].map((_, i) => (
+          {starPositions.map((star) => (
             <div
-              key={i}
+              key={star.id}
               className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
               style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                opacity: 0.3 + Math.random() * 0.7,
+                left: `${star.left}%`,
+                top: `${star.top}%`,
+                animationDelay: `${star.delay}s`,
+                opacity: star.opacity,
               }}
             />
           ))}
@@ -825,17 +871,39 @@ export const GameCanvas = ({
         {/* HUD - Mobile Responsive */}
         <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={onBackToDifficulty}
-              className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4"
-            >
-              ← Back
-            </Button>
+            {showBackConfirm ? (
+              <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
+                <span className="text-xs text-foreground font-medium">Quit?</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={onBackToDifficulty}
+                  className="h-6 px-2 text-xs"
+                >
+                  Yes
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBackConfirm(false)}
+                  className="h-6 px-2 text-xs"
+                >
+                  No
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => gameStarted && !gameEnded ? setShowBackConfirm(true) : onBackToDifficulty?.()}
+                className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4"
+              >
+                ← Menu
+              </Button>
+            )}
             
             {ballPhase === 'ready' && (
-              <div className="hidden sm:block">
+              <div>
                 <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
               </div>
             )}
@@ -863,7 +931,7 @@ export const GameCanvas = ({
               </div>
             </Card>
             
-            <div className="hidden sm:block">
+            <div>
               <CoinDisplay coins={coins} />
             </div>
           </div>

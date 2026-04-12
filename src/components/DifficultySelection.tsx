@@ -36,7 +36,9 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
       const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
       const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
       const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-      setTotalCoins(coinsEasy + coinsMedium + coinsHard);
+      const coinsBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0');
+      const coinsSpent = parseInt(localStorage.getItem('game-coins-spent') || '0');
+      setTotalCoins(Math.max(0, coinsEasy + coinsMedium + coinsHard + coinsBonus - coinsSpent));
     };
     loadCoins();
   }, []);
