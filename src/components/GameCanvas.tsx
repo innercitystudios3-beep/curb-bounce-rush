@@ -244,6 +244,8 @@ export const GameCanvas = ({
   };
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) return;
+
     // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
       if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
@@ -259,9 +261,11 @@ export const GameCanvas = ({
     }, 2000);
 
     return () => clearInterval(spawnInterval);
-  }, [currentDifficultySettings]);
+  }, [currentDifficultySettings, gameStarted, gameEnded]);
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) return;
+
     // Spawn curb coins randomly
     const spawnCoinInterval = setInterval(() => {
       // Spawn coin if there are less than 3 coins on the curb
@@ -287,9 +291,11 @@ export const GameCanvas = ({
     }, 3000);
 
     return () => clearInterval(spawnCoinInterval);
-  }, []);
+  }, [gameStarted, gameEnded]);
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) return;
+
     // Remove expired coins
     const checkExpiredCoins = setInterval(() => {
       const now = Date.now();
@@ -297,9 +303,11 @@ export const GameCanvas = ({
     }, 500); // Check every 500ms
 
     return () => clearInterval(checkExpiredCoins);
-  }, []);
+  }, [gameStarted, gameEnded]);
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) return;
+
     // Move obstacles
     const moveInterval = setInterval(() => {
       setObstacles((prev) =>
@@ -310,9 +318,11 @@ export const GameCanvas = ({
     }, 50);
 
     return () => clearInterval(moveInterval);
-  }, []);
+  }, [gameStarted, gameEnded]);
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) return;
+
     // Move bullseye target slowly
     const moveInterval = setInterval(() => {
       setBullseyeTarget((prev) => {
@@ -333,7 +343,7 @@ export const GameCanvas = ({
     }, 50);
 
     return () => clearInterval(moveInterval);
-  }, [currentDifficultySettings]);
+  }, [currentDifficultySettings, gameStarted, gameEnded]);
 
   const calculateSuccess = (throwPower: number) => {
     // Success rate increases if power is between 60-80 (sweet spot)
@@ -779,8 +789,8 @@ export const GameCanvas = ({
 
   return (
     <div 
-      className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
-      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: '70%' }}
+      className="relative w-full h-screen overflow-hidden bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: 'cover' }}
     >
       {/* Starting Screen */}
       {!gameStarted && (

@@ -128,19 +128,19 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
               </div>
 
               {/* Shop Buttons Container - 2x2 grid on mobile */}
-              <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 w-full max-w-2xl">
+              <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 lg:gap-3 w-full max-w-4xl">
                 {/* Backdrop Shop Button */}
                 {onOpenShop && (
                   <Button
                     onClick={onOpenShop}
                     size="default"
-                    className="gap-1 sm:gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white font-bold text-xs sm:text-lg px-2 sm:px-8 py-3 sm:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                    className="gap-1 sm:gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white font-bold text-xs sm:text-base lg:text-lg px-2 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1 flex items-center justify-center min-w-0"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 via-pink-400/20 to-purple-400/20 animate-shimmer" />
-                    <ShoppingBag className="w-4 h-4 sm:w-6 sm:h-6 relative z-10" />
-                    <span className="relative z-10 hidden sm:inline">Backdrop Shop</span>
-                    <span className="relative z-10 sm:hidden">Backdrops</span>
-                    <Sparkles className="w-3 h-3 sm:w-5 sm:h-5 relative z-10 animate-spin hidden sm:block" />
+                    <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 relative z-10 shrink-0" />
+                    <span className="relative z-10 hidden lg:inline whitespace-nowrap">Backdrop Shop</span>
+                    <span className="relative z-10 lg:hidden whitespace-nowrap text-ellipsis overflow-hidden">Backdrops</span>
+                    <Sparkles className="w-3 h-3 lg:w-5 lg:h-5 relative z-10 animate-spin hidden lg:block shrink-0" />
                   </Button>
                 )}
 
@@ -149,13 +149,13 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                   <Button
                     onClick={onOpenBallShop}
                     size="default"
-                    className="gap-1 sm:gap-2 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-700 hover:via-cyan-700 hover:to-teal-700 text-white font-bold text-xs sm:text-lg px-2 sm:px-8 py-3 sm:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                    className="gap-1 sm:gap-2 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-700 hover:via-cyan-700 hover:to-teal-700 text-white font-bold text-xs sm:text-base lg:text-lg px-2 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1 flex items-center justify-center min-w-0"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 via-cyan-400/20 to-teal-400/20 animate-shimmer" />
-                    <Circle className="w-4 h-4 sm:w-6 sm:h-6 relative z-10" />
-                    <span className="relative z-10 hidden sm:inline">Ball Skins</span>
-                    <span className="relative z-10 sm:hidden">Balls</span>
-                    <Sparkles className="w-3 h-3 sm:w-5 sm:h-5 relative z-10 animate-spin hidden sm:block" />
+                    <Circle className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 relative z-10 shrink-0" />
+                    <span className="relative z-10 hidden lg:inline whitespace-nowrap">Ball Skins</span>
+                    <span className="relative z-10 lg:hidden whitespace-nowrap text-ellipsis overflow-hidden">Balls</span>
+                    <Sparkles className="w-3 h-3 lg:w-5 lg:h-5 relative z-10 animate-spin hidden lg:block shrink-0" />
                   </Button>
                 )}
 
@@ -164,13 +164,13 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                   <Button
                     onClick={onOpenAchievements}
                     size="default"
-                    className="gap-1 sm:gap-2 bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600 hover:from-amber-700 hover:via-yellow-700 hover:to-orange-700 text-white font-bold text-xs sm:text-lg px-2 sm:px-8 py-3 sm:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                    className="gap-1 sm:gap-2 bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600 hover:from-amber-700 hover:via-yellow-700 hover:to-orange-700 text-white font-bold text-xs sm:text-base lg:text-lg px-2 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1 flex items-center justify-center min-w-0"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-orange-400/20 animate-shimmer" />
-                    <Trophy className="w-4 h-4 sm:w-6 sm:h-6 relative z-10" />
-                    <span className="relative z-10 hidden sm:inline">Achievements</span>
-                    <span className="relative z-10 sm:hidden">Awards</span>
-                    <Sparkles className="w-3 h-3 sm:w-5 sm:h-5 relative z-10 animate-spin hidden sm:block" />
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 relative z-10 shrink-0" />
+                    <span className="relative z-10 hidden lg:inline whitespace-nowrap">Achievements</span>
+                    <span className="relative z-10 lg:hidden whitespace-nowrap text-ellipsis overflow-hidden">Awards</span>
+                    <Sparkles className="w-3 h-3 lg:w-5 lg:h-5 relative z-10 animate-spin hidden lg:block shrink-0" />
                   </Button>
                 )}
 
@@ -179,13 +179,13 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                   <Button
                     onClick={onOpenDailyChallenges}
                     size="default"
-                    className="gap-1 sm:gap-2 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-lg px-2 sm:px-8 py-3 sm:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                    className="gap-1 sm:gap-2 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-base lg:text-lg px-2 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 rounded-lg sm:rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1 flex items-center justify-center min-w-0"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-green-400/20 via-emerald-400/20 to-teal-400/20 animate-shimmer" />
-                    <Target className="w-4 h-4 sm:w-6 sm:h-6 relative z-10" />
-                    <span className="relative z-10 hidden sm:inline">Daily Challenges</span>
-                    <span className="relative z-10 sm:hidden">Daily</span>
-                    <Sparkles className="w-3 h-3 sm:w-5 sm:h-5 relative z-10 animate-spin hidden sm:block" />
+                    <Target className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 relative z-10 shrink-0" />
+                    <span className="relative z-10 hidden lg:inline whitespace-nowrap">Daily Challenges</span>
+                    <span className="relative z-10 lg:hidden whitespace-nowrap text-ellipsis overflow-hidden">Daily</span>
+                    <Sparkles className="w-3 h-3 lg:w-5 lg:h-5 relative z-10 animate-spin hidden lg:block shrink-0" />
                   </Button>
                 )}
               </div>
