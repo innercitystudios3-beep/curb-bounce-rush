@@ -4,8 +4,6 @@ import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { ThrowMeter } from "./ThrowMeter";
 import { CoinDisplay } from "./CoinDisplay";
-import { FloatingCoins } from "./FloatingCoins";
-import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
 import { SoundToggle } from "./SoundToggle";
@@ -57,18 +55,12 @@ export const GameCanvas = ({
   onChallengeProgress
 }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
   const [coins, setCoins] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [preloadedInterstitial, setPreloadedInterstitial] = useState<unknown>(null);
-  const [showFloatingCoins, setShowFloatingCoins] = useState(false);
-  const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
-  const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
   const [consecutiveHits, setConsecutiveHits] = useState(0);
-  const [isThowing, setIsThrowing] = useState(false);
+  const [isThrowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [power, setPower] = useState(0);
@@ -77,7 +69,7 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 15 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
@@ -98,8 +90,6 @@ export const GameCanvas = ({
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
   useEffect(() => { return () => { if (chargeIntervalRef.current) cancelAnimationFrame(chargeIntervalRef.current); }; }, []);
-  const chargeSoundIntervalRef = useRef<number | null>(null);
-  const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const bullseyeHitsRef = useRef(0); // Dedicated counter for bullseye challenge
   const [swipeAngle, setSwipeAngle] = useState(0);
@@ -111,7 +101,7 @@ export const GameCanvas = ({
   const playStateRef = useRef<PlayState>("IDLE");
   const ballPhysicsRef = useRef({
     x: 50,
-    y: 80,
+    y: 15,
     vx: 0,
     vy: 0,
     spin: 0,
@@ -145,22 +135,16 @@ export const GameCanvas = ({
   // Difficulty settings
   const difficultySettings = {
     easy: {
-      baseSuccessChance: 45,
-      successChanceDecrease: 5,
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
       bullseyeSpeed: 0.5,
     },
     medium: {
-      baseSuccessChance: 35,
-      successChanceDecrease: 7,
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
       bullseyeSpeed: 1.0,
     },
     hard: {
-      baseSuccessChance: 25,
-      successChanceDecrease: 10,
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
       bullseyeSpeed: 1.8,
@@ -168,10 +152,6 @@ export const GameCanvas = ({
   };
 
   const currentDifficultySettings = difficultySettings[difficulty];
-  const baseSuccessChance = currentDifficultySettings.baseSuccessChance;
-  const successChanceDecrease = currentDifficultySettings.successChanceDecrease;
-  
-  const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
   // Load player data from localStorage (difficulty-specific)
   useEffect(() => {
@@ -213,6 +193,12 @@ export const GameCanvas = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Trigger win effect at 100 points
+  useEffect(() => {
+    if (score >= 100 && !gameWon && gameStarted && !gameEnded) {
+      setGameWon(true);
+    }
+  }, [score, gameWon, gameStarted, gameEnded]);
 
   // Timer countdown
   useEffect(() => {
@@ -239,7 +225,7 @@ export const GameCanvas = ({
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+      if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
       
       if (e.key === 'ArrowLeft') {
         setBallHorizontalPosition(prev => Math.max(10, prev - 5));
@@ -250,16 +236,16 @@ export const GameCanvas = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThowing, isBallFlying, ballPhase]);
+  }, [isThrowing, isBallFlying, ballPhase]);
 
   const moveLeft = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     setBallHorizontalPosition(prev => Math.max(10, prev - 10));
     soundManager.playClick();
   };
 
   const moveRight = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     setBallHorizontalPosition(prev => Math.min(90, prev + 10));
     soundManager.playClick();
   };
@@ -281,18 +267,6 @@ export const GameCanvas = ({
     const streakBonus = Math.floor(consecutiveHits / 3); // +1 coin every 3 consecutive hits
     
     return baseCoins + streakBonus;
-  };
-
-  const spawnCoinParticles = (amount: number) => {
-    const newParticles = Array.from({ length: Math.min(amount, 8) }, () => ({
-      id: particleIdRef.current++,
-    }));
-    setCoinParticles(newParticles);
-    
-    // Clear particles after animation
-    setTimeout(() => {
-      setCoinParticles([]);
-    }, 2000);
   };
 
   useEffect(() => {
@@ -360,9 +334,11 @@ export const GameCanvas = ({
   useEffect(() => {
     if (!gameStarted || gameEnded) return;
 
-    const curbY = 5;
-    const gravity = 900 * viewport.scaleY;
-    const restitution = 0.7;
+    // Curb is at the TOP of the street div (bottom: 88% in the coordinate system).
+    // Ball starts near the bottom (y=15) and flies upward toward the curb (y=88).
+    const curbY = 88;
+    const gravity = 500 * viewport.scaleY;
+    const restitution = 0.65;
     let resetTimeout: number | null = null;
 
     const loop = (timestamp: number) => {
@@ -391,47 +367,65 @@ export const GameCanvas = ({
 
       if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
-        b.vy -= gravity * delta;
+        b.vy -= gravity * delta; // gravity pulls down (reduces upward velocity)
         b.vx += b.spin * delta * 60;
         b.x += b.vx * delta;
         b.y += b.vy * delta;
 
         const ballRadius = 2;
-        if (b.y <= curbY + ballRadius && b.vy < 0 && !b.hasBounced) {
-          b.y = curbY + ballRadius;
-          b.vy = Math.abs(b.vy) * restitution;
+
+        // Ball reaches the curb (top of street) on the way UP
+        if (b.y >= curbY - ballRadius && b.vy > 0 && !b.hasBounced) {
+          b.y = curbY - ballRadius;
+          b.vy = -Math.abs(b.vy) * restitution; // bounce back down
           b.vx += (Math.random() * 20 - 10);
           b.hasBounced = true;
           setBallPhase("hit");
           soundManager.playImpact();
-        }
 
-        const obstacleHit = obstaclesRef.current.some((obs) => Math.abs((obs.position + 5) - b.x) < 6 && b.y < 25);
-        if (obstacleHit) {
-          setBallPhase("missed");
-          setPlayState("MISSED");
-        } else if (b.hasBounced && b.vy <= 0) {
+          // Score immediately at the moment of curb contact
           const bullseyeHit = Math.abs(bullseyeRef.current.position - b.x) < 6;
           const hitCurbZone = b.x >= 15 && b.x <= 85;
           if (hitCurbZone) {
+            const coinsGained = calculateCoinsEarned(70, true);
             const pointsEarned = bullseyeHit ? 60 : 10;
             setScore((prev) => prev + pointsEarned);
             setConsecutiveHits((prev) => prev + 1);
-            setCoins((prev) => prev + calculateCoinsEarned(70, true));
+            setCoins((prev) => prev + coinsGained);
+            setCoinsEarned((prev) => prev + coinsGained);
             setShowConfetti(true);
             if (bullseyeHit) bullseyeHitsRef.current += 1;
             setPlayState("SCORED");
+            playStateRef.current = "SCORED";
             setBallPhase("bouncing");
             soundManager.playSuccess();
           } else {
             setPlayState("MISSED");
+            playStateRef.current = "MISSED";
             setBallPhase("missed");
             soundManager.playFail();
             setConsecutiveHits(0);
             setAttempts((prev) => Math.max(prev - 1, 0));
           }
-        } else if (b.y < -25 || b.x < -10 || b.x > 110) {
+        }
+
+        // Obstacles are in the lower portion of the street (y 25–65)
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 5) - b.x) < 6 && b.y >= 25 && b.y <= 65
+        );
+        if (obstacleHit && playStateRef.current === "BALL_IN_PLAY") {
+          setBallPhase("missed");
           setPlayState("MISSED");
+          playStateRef.current = "MISSED";
+        }
+
+        // Off-screen or fell back without bouncing
+        if (
+          playStateRef.current === "BALL_IN_PLAY" &&
+          (b.y < -10 || b.y > 130 || b.x < -10 || b.x > 110)
+        ) {
+          setPlayState("MISSED");
+          playStateRef.current = "MISSED";
           setBallPhase("missed");
           setConsecutiveHits(0);
           setAttempts((prev) => Math.max(prev - 1, 0));
@@ -444,14 +438,15 @@ export const GameCanvas = ({
       if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
         setPlayState("RESET");
         resetTimeout = window.setTimeout(() => {
-          ballPhysicsRef.current = { x: 50, y: 80, vx: 0, vy: 0, spin: 0, hasBounced: false };
-          setBallPosition({ x: 50, y: 80 });
+          ballPhysicsRef.current = { x: 50, y: 15, vx: 0, vy: 0, spin: 0, hasBounced: false };
+          setBallPosition({ x: 50, y: 15 });
           setBallHorizontalPosition(50);
           setIsBallFlying(false);
           setIsThrowing(false);
           setPower(0);
           setBallPhase("ready");
           setPlayState("IDLE");
+          playStateRef.current = "IDLE";
           setShowConfetti(false);
         }, 1500);
       }
@@ -467,16 +462,8 @@ export const GameCanvas = ({
     };
   }, [gameStarted, gameEnded, currentDifficultySettings.bullseyeSpeed, viewport.scaleY]);
 
-  const calculateSuccess = (throwPower: number) => {
-    // Success rate increases if power is between 60-80 (sweet spot)
-    const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
-    const adjustedChance = isPerfectTiming ? Math.min(75, currentSuccessChance + 30) : currentSuccessChance;
-    
-    return Math.random() * 100 < adjustedChance;
-  };
-
   const startCharging = () => {
-    if (isThowing || isBallFlying) return;
+    if (isThrowing || isBallFlying) return;
     
     setIsCharging(true);
     isChargingRef.current = true;
@@ -526,7 +513,7 @@ export const GameCanvas = ({
 
   // Pointer handlers for unified desktop/mobile flicking
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
@@ -542,7 +529,7 @@ export const GameCanvas = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current || isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
@@ -556,7 +543,7 @@ export const GameCanvas = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current || isThowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
+    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
@@ -590,7 +577,7 @@ export const GameCanvas = ({
   };
 
   const throwBallFromVelocity = (vx: number, vy: number) => {
-    if (isThowing || isBallFlying || !gameStarted) return;
+    if (isThrowing || isBallFlying || !gameStarted) return;
     setIsThrowing(true);
     setIsBallFlying(true);
     setBallPhase("flying");
@@ -599,7 +586,7 @@ export const GameCanvas = ({
 
     ballPhysicsRef.current = {
       x: ballHorizontalPosition,
-      y: 80,
+      y: 15,
       vx,
       vy,
       spin: vx * 0.0015,
@@ -619,7 +606,6 @@ export const GameCanvas = ({
     setGamesPlayed(newGamesPlayed);
 
     setScore(0);
-    setLevel(1);
     setCoinsEarned(0);
     setConsecutiveHits(0);
     bullseyeHitsRef.current = 0;
@@ -628,10 +614,9 @@ export const GameCanvas = ({
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 80 });
+    setBallPosition({ x: 50, y: 15 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
-    setShowLeaderboard(false);
     setFinalTime(0);
     setAttempts(5);
     setPlayState("IDLE");
@@ -666,9 +651,7 @@ export const GameCanvas = ({
     });
   };
 
-  const handleRewardEarned = (amount: number) => {
-    setCoins(coins + amount);
-  };
+
 
 
   const formatTime = (seconds: number) => {
@@ -713,7 +696,7 @@ export const GameCanvas = ({
     >
       {/* Starting Screen */}
       {!gameStarted && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
             <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
             
@@ -837,7 +820,7 @@ export const GameCanvas = ({
             
             {ballPhase === 'ready' && (
               <div>
-                <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+                <ThrowMeter value={power} isCharging={isCharging} disabled={isThrowing || isBallFlying} />
               </div>
             )}
           </div>
@@ -881,7 +864,7 @@ export const GameCanvas = ({
             gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
           }`} style={{ 
             background: gameWon ? undefined : "hsl(var(--game-street))",
-            height: `${Math.max(220, viewport.height * 0.38)}px`,
+            height: `${Math.max(150, viewport.height * 0.22)}px`,
           }}>
             {/* Curb */}
             <div
@@ -1036,7 +1019,7 @@ export const GameCanvas = ({
                 variant="outline"
                 size="default"
                 onClick={moveLeft}
-                disabled={isThowing || isBallFlying}
+                disabled={isThrowing || isBallFlying}
                 className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 ← LEFT
@@ -1050,7 +1033,7 @@ export const GameCanvas = ({
                 variant="outline"
                 size="default"
                 onClick={moveRight}
-                disabled={isThowing || isBallFlying}
+                disabled={isThrowing || isBallFlying}
                 className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 RIGHT →
@@ -1065,7 +1048,7 @@ export const GameCanvas = ({
             onPointerLeave={() => {
               if (isCharging) releaseThrow();
             }}
-            disabled={isThowing || isBallFlying}
+            disabled={isThrowing || isBallFlying}
             className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
           >
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
@@ -1096,29 +1079,6 @@ export const GameCanvas = ({
       {/* Confetti */}
       {showConfetti && <ConfettiEffect />}
       
-      {/* Floating coins animation */}
-      {showFloatingCoins && (
-        <FloatingCoins 
-          amount={floatingCoinAmount} 
-          onComplete={() => setShowFloatingCoins(false)}
-        />
-      )}
-      
-      {/* Coin particles */}
-      {coinParticles.map((particle, index) => (
-        <CoinParticle
-          key={particle.id}
-          startX={window.innerWidth / 2}
-          startY={window.innerHeight * 0.2}
-          targetX={window.innerWidth / 2 + 200}
-          targetY={40}
-          delay={index * 100}
-          onComplete={() => {
-            setCoinParticles(prev => prev.filter(p => p.id !== particle.id));
-          }}
-        />
-      ))}
-
       {/* Win modal */}
       {gameEnded && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
