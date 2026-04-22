@@ -389,15 +389,16 @@ export const GameCanvas = ({
 
       if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
-        b.vy -= gravity * delta * 0.01;
+        b.vy -= gravity * delta;
         b.vx += b.spin * delta * 60;
-        b.x += b.vx * delta * 0.045;
-        b.y += b.vy * delta * 0.045;
+        b.x += b.vx * delta;
+        b.y += b.vy * delta;
 
-        if (b.y + 2 >= curbY && b.vy < 0 && !b.hasBounced) {
-          b.y = curbY - 2;
+        const ballRadius = 2;
+        if (b.y <= curbY + ballRadius && b.vy < 0 && !b.hasBounced) {
+          b.y = curbY + ballRadius;
           b.vy = Math.abs(b.vy) * restitution;
-          b.vx *= 1 + (Math.random() * 0.2 - 0.1);
+          b.vx += (Math.random() * 20 - 10);
           b.hasBounced = true;
           setBallPhase("hit");
           soundManager.playImpact();
@@ -478,20 +479,29 @@ export const GameCanvas = ({
     setIsCharging(true);
     setPower(0);
     
-    // Play charging sound periodically
-    chargeSoundIntervalRef.current = window.setInterval(() => {
-      soundManager.playCharging();
-    }, 200);
-    
-    // Charge power over time
-    chargeIntervalRef.current = window.setInterval(() => {
+    let lastTime = performance.now();
+    let soundTimer = 0;
+
+    const chargeLoop = (timestamp: number) => {
+      const delta = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+      soundTimer += delta;
+
+      if (soundTimer >= 0.2) {
+        soundManager.playCharging();
+        soundTimer = 0;
+      }
+
       setPower((prev) => {
-        if (prev >= 100) {
-          return 0; // Loop back to 0 when reaching 100
-        }
-        return prev + 2; // Increase by 2 every interval
+        let next = prev + 40 * delta; // 40 units per second, takes 2.5s to 100
+        if (next >= 100) next -= 100;
+        return next;
       });
-    }, 50);
+
+      chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+    };
+
+    chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
   };
 
   const releaseThrow = () => {
@@ -499,12 +509,8 @@ export const GameCanvas = ({
     
     setIsCharging(false);
     if (chargeIntervalRef.current) {
-      clearInterval(chargeIntervalRef.current);
+      cancelAnimationFrame(chargeIntervalRef.current);
       chargeIntervalRef.current = null;
-    }
-    if (chargeSoundIntervalRef.current) {
-      clearInterval(chargeSoundIntervalRef.current);
-      chargeSoundIntervalRef.current = null;
     }
     
     throwBall(power, swipeAngle);
@@ -849,7 +855,7 @@ export const GameCanvas = ({
                 </div>
                 <div className="h-6 sm:h-8 w-px bg-border" />
                 <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">ATTEMPTS</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">LIVES/ATTEMPTS</div>
                   <div className="text-lg sm:text-3xl font-bold text-orange-400">{attempts}</div>
                 </div>
               </div>
