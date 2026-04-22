@@ -69,7 +69,7 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 15 });
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 8 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
@@ -101,7 +101,7 @@ export const GameCanvas = ({
   const playStateRef = useRef<PlayState>("IDLE");
   const ballPhysicsRef = useRef({
     x: 50,
-    y: 15,
+    y: 8,
     vx: 0,
     vy: 0,
     spin: 0,
@@ -336,7 +336,7 @@ export const GameCanvas = ({
 
     // Curb is at the TOP of the street div (bottom: 88% in the coordinate system).
     // Ball starts near the bottom (y=15) and flies upward toward the curb (y=88).
-    const curbY = 88;
+    const curbY = 90;
     const gravity = 500 * viewport.scaleY;
     const restitution = 0.65;
     let resetTimeout: number | null = null;
@@ -438,8 +438,8 @@ export const GameCanvas = ({
       if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
         setPlayState("RESET");
         resetTimeout = window.setTimeout(() => {
-          ballPhysicsRef.current = { x: 50, y: 15, vx: 0, vy: 0, spin: 0, hasBounced: false };
-          setBallPosition({ x: 50, y: 15 });
+          ballPhysicsRef.current = { x: 50, y: 8, vx: 0, vy: 0, spin: 0, hasBounced: false };
+          setBallPosition({ x: 50, y: 8 });
           setBallHorizontalPosition(50);
           setIsBallFlying(false);
           setIsThrowing(false);
@@ -564,7 +564,7 @@ export const GameCanvas = ({
   };
 
   const throwBall = (throwPower: number, angle: number = 0) => {
-    const speed = (300 + Math.min(throwPower, 100) * 1.1) * Math.max(0.8, viewport.scaleY);
+    const speed = (320 + Math.min(throwPower, 100) * 1.1) * Math.max(0.8, viewport.scaleY);
     const vx = Math.sin((angle * Math.PI) / 180) * speed * 0.55 * 0.045;
     const vy = speed;
     throwBallFromVelocity(vx, vy);
@@ -572,7 +572,7 @@ export const GameCanvas = ({
 
   const throwBallFromGesture = (velocityX: number, velocityY: number, rect: DOMRect) => {
     const mappedVx = Math.max(-520, Math.min(520, (velocityX / rect.width) * 700)) * 0.045;
-    const mappedVy = Math.max(260, Math.min(420, (-velocityY / rect.height) * 900));
+    const mappedVy = Math.max(320, Math.min(460, (-velocityY / rect.height) * 900));
     throwBallFromVelocity(mappedVx, mappedVy);
   };
 
@@ -586,7 +586,7 @@ export const GameCanvas = ({
 
     ballPhysicsRef.current = {
       x: ballHorizontalPosition,
-      y: 15,
+      y: 8,
       vx,
       vy,
       spin: vx * 0.0015,
@@ -614,7 +614,7 @@ export const GameCanvas = ({
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 15 });
+    setBallPosition({ x: 50, y: 8 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setFinalTime(0);
@@ -858,13 +858,13 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Street and curb */}
-        <div className="flex-1 flex items-end">
+        {/* Play zone */}
+        <div className="flex-1 relative flex items-end">
           <div className={`w-full relative transition-all duration-1000 ${
             gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
           }`} style={{ 
             background: gameWon ? undefined : "hsl(var(--game-street))",
-            height: `${Math.max(150, viewport.height * 0.22)}px`,
+            height: `${Math.max(180, viewport.height * 0.42)}px`,
           }}>
             {/* Curb */}
             <div
@@ -954,8 +954,8 @@ export const GameCanvas = ({
             {obstacles.map((obs) => (
               <div
                 key={obs.id}
-                className="absolute bottom-16 transition-all"
-                style={{ left: `${obs.position}%` }}
+                className="absolute transition-all"
+                style={{ left: `${obs.position}%`, bottom: '12%' }}
               >
                 <div
                   className={`${
@@ -967,6 +967,31 @@ export const GameCanvas = ({
               </div>
             ))}
 
+            {/* Aiming guide — easy/medium only, before throw */}
+            {ballPhase === 'ready' && gameStarted && difficulty !== 'hard' && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none opacity-70 animate-pulse"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
+                  </marker>
+                </defs>
+                <line
+                  x1={ballHorizontalPosition}
+                  y1="92"
+                  x2={bullseyeTarget.position}
+                  y2="10"
+                  stroke="#facc15"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                  markerEnd="url(#arrowhead)"
+                />
+              </svg>
+            )}
+
             {/* Ball */}
             <div
               className={`absolute ${
@@ -977,8 +1002,8 @@ export const GameCanvas = ({
                 'transition-all duration-200'
               }`}
               style={{
-                width: `${Math.max(36, 64 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
-                height: `${Math.max(36, 64 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
+                width: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
+                height: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
                 left: `${ballPosition.x}%`,
                 bottom: `${ballPosition.y}%`,
                 filter: ballPhase === 'hit' ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
@@ -1009,10 +1034,10 @@ export const GameCanvas = ({
         </div>
 
 
-        {/* Controls - Mobile Responsive */}
-        <div className="absolute bottom-4 sm:bottom-8 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4">
-          
-          {/* Movement controls */}
+        {/* Controls - flex-none so they never overlap the play zone */}
+        <div className="flex-none z-20 pb-2 pt-1 px-2 flex flex-col items-center gap-2">
+
+          {/* Movement controls row */}
           {ballPhase === 'ready' && (
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
               <Button
@@ -1024,11 +1049,11 @@ export const GameCanvas = ({
               >
                 ← LEFT
               </Button>
-              
+
               <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
                 {Math.round(ballHorizontalPosition)}%
               </div>
-              
+
               <Button
                 variant="outline"
                 size="default"
@@ -1040,19 +1065,33 @@ export const GameCanvas = ({
               </Button>
             </div>
           )}
-          
-          <Button
-            size="lg"
-            onPointerDown={startCharging}
-            onPointerUp={releaseThrow}
-            onPointerLeave={() => {
-              if (isCharging) releaseThrow();
-            }}
-            disabled={isThrowing || isBallFlying}
-            className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
-          >
-            {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
-          </Button>
+
+          {/* Throw button + utility buttons row */}
+          <div className="flex items-center gap-2 w-full justify-center">
+            <SoundToggle className="flex-none z-20" />
+
+            <Button
+              size="lg"
+              onPointerDown={startCharging}
+              onPointerUp={releaseThrow}
+              onPointerLeave={() => {
+                if (isCharging) releaseThrow();
+              }}
+              disabled={isThrowing || isBallFlying}
+              className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none flex-1 sm:flex-none"
+            >
+              {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={restartGame}
+              className="flex-none border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
+            >
+              RESTART
+            </Button>
+          </div>
 
           {ballPhase === 'ready' && (
             <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
@@ -1061,19 +1100,6 @@ export const GameCanvas = ({
             </div>
           )}
         </div>
-
-        {/* Sound toggle buttons */}
-        <SoundToggle className="absolute bottom-2 sm:top-4 left-2 sm:right-24 sm:left-auto z-20" />
-
-        {/* Restart button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={restartGame}
-          className="absolute bottom-2 sm:top-4 right-2 sm:right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
-        >
-          RESTART
-        </Button>
       </div>
 
       {/* Confetti */}
