@@ -16,11 +16,13 @@ export interface UserProfile {
 
 const PROFILE_STORAGE_KEY = "curbball_profile";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const getProfile = (): UserProfile | null => {
   const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
   return stored ? JSON.parse(stored) : null;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const saveProfile = (profile: UserProfile) => {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
 };
