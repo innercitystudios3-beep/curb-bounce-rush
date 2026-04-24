@@ -59,14 +59,12 @@ export const GameCanvas = ({
   const [coins, setCoins] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [preloadedInterstitial, setPreloadedInterstitial] = useState<unknown>(null);
   const [showFloatingCoins, setShowFloatingCoins] = useState(false);
   const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
   const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
   const [consecutiveHits, setConsecutiveHits] = useState(0);
-  const [isThowing, setIsThrowing] = useState(false);
+  const [isThrowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [power, setPower] = useState(0);
@@ -89,9 +87,19 @@ export const GameCanvas = ({
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const bullseyeHitsRef = useRef(0); // Dedicated counter for bullseye challenge
+  const bullseyeHitsRef = useRef(0);
+  const ballFlightRafRef = useRef<number | null>(null);
+  const gameAreaRef = useRef<HTMLDivElement | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const scoreRef = useRef(0);
+  const isChargingRef = useRef(false);
+  const gameStartedRef = useRef(false);
+  const gameEndedRef = useRef(false);
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
 
@@ -136,17 +144,21 @@ export const GameCanvas = ({
   
   const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
+  // Keep refs in sync
+  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { isChargingRef.current = isCharging; }, [isCharging]);
+  useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
+  useEffect(() => { gameEndedRef.current = gameEnded; }, [gameEnded]);
+
   // Load player data from localStorage (difficulty-specific)
   useEffect(() => {
-    const loadPlayerData = () => {
-      const savedCoins = localStorage.getItem(`game-coins-${difficulty}`);
-      const savedHighScore = localStorage.getItem(`game-highScore-${difficulty}`);
-      const savedGamesPlayed = localStorage.getItem(`game-gamesplayed-${difficulty}`);
-      setCoins(savedCoins ? parseInt(savedCoins) : 0);
-      setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
-      setGamesPlayed(savedGamesPlayed ? parseInt(savedGamesPlayed) : 0);
+    const parseSafe = (val: string | null, fallback = 0) => {
+      const n = parseInt(val ?? '', 10);
+      return isNaN(n) || n < 0 ? fallback : n;
     };
-    loadPlayerData();
+    setCoins(parseSafe(localStorage.getItem(`game-coins-${difficulty}`)));
+    setHighScore(parseSafe(localStorage.getItem(`game-highScore-${difficulty}`)));
+    setGamesPlayed(parseSafe(localStorage.getItem(`game-gamesplayed-${difficulty}`)));
   }, [difficulty]);
 
   // Save player data to localStorage (difficulty-specific)
@@ -162,10 +174,10 @@ export const GameCanvas = ({
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
 
-  // Timer countdown
+  // Timer countdown — recreates when pause state changes so it truly stops
   useEffect(() => {
-    if (!gameStarted || gameEnded || timeRemaining <= 0) return;
-    
+    if (!gameStarted || gameEnded || isPaused) return;
+
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
@@ -173,7 +185,7 @@ export const GameCanvas = ({
           setGameEnded(true);
           setFinalTime(TIME_LIMIT);
           soundManager.playSuccess();
-          handleGameEnd(score, TIME_LIMIT);
+          handleGameEnd(scoreRef.current, TIME_LIMIT);
           return 0;
         }
         return prev - 1;
@@ -182,12 +194,63 @@ export const GameCanvas = ({
 
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameStarted, gameEnded, timeRemaining, score]);
+  }, [gameStarted, gameEnded, isPaused]);
+
+  // Screen wake lock — prevent device from sleeping during active game
+  useEffect(() => {
+    if (!gameStarted || gameEnded) {
+      wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+      return;
+    }
+    const acquire = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await (navigator as Navigator & { wakeLock: { request(type: string): Promise<WakeLockSentinel> } }).wakeLock.request('screen');
+        }
+      } catch { /* unsupported or permission denied */ }
+    };
+    acquire();
+    return () => {
+      wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+    };
+  }, [gameStarted, gameEnded, isPaused]);
+
+  // Page visibility — release charge when user switches tabs/apps
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && isChargingRef.current) {
+        setIsCharging(false);
+        isChargingRef.current = false;
+        if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current);
+        if (chargeSoundIntervalRef.current) clearInterval(chargeSoundIntervalRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  // Prevent passive touchmove (allows e.preventDefault() for scroll blocking)
+  useEffect(() => {
+    const el = gameAreaRef.current;
+    if (!el) return;
+    const block = (e: TouchEvent) => { e.preventDefault(); };
+    el.addEventListener('touchmove', block, { passive: false });
+    return () => el.removeEventListener('touchmove', block);
+  }, []);
+
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (ballFlightRafRef.current) cancelAnimationFrame(ballFlightRafRef.current);
+    };
+  }, []);
 
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+      if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
       
       if (e.key === 'ArrowLeft') {
         setBallHorizontalPosition(prev => Math.max(10, prev - 5));
@@ -198,16 +261,16 @@ export const GameCanvas = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThowing, isBallFlying, ballPhase]);
+  }, [isThrowing, isBallFlying, ballPhase]);
 
   const moveLeft = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     setBallHorizontalPosition(prev => Math.max(10, prev - 10));
     soundManager.playClick();
   };
 
   const moveRight = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     setBallHorizontalPosition(prev => Math.min(90, prev + 10));
     soundManager.playClick();
   };
@@ -244,7 +307,7 @@ export const GameCanvas = ({
   };
 
   useEffect(() => {
-    if (!gameStarted || gameEnded) return;
+    if (!gameStarted || gameEnded || isPaused) return;
 
     // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
@@ -261,10 +324,10 @@ export const GameCanvas = ({
     }, 2000);
 
     return () => clearInterval(spawnInterval);
-  }, [currentDifficultySettings, gameStarted, gameEnded]);
+  }, [currentDifficultySettings, gameStarted, gameEnded, isPaused]);
 
   useEffect(() => {
-    if (!gameStarted || gameEnded) return;
+    if (!gameStarted || gameEnded || isPaused) return;
 
     // Spawn curb coins randomly
     const spawnCoinInterval = setInterval(() => {
@@ -291,10 +354,10 @@ export const GameCanvas = ({
     }, 3000);
 
     return () => clearInterval(spawnCoinInterval);
-  }, [gameStarted, gameEnded]);
+  }, [gameStarted, gameEnded, isPaused]);
 
   useEffect(() => {
-    if (!gameStarted || gameEnded) return;
+    if (!gameStarted || gameEnded || isPaused) return;
 
     // Remove expired coins
     const checkExpiredCoins = setInterval(() => {
@@ -303,10 +366,10 @@ export const GameCanvas = ({
     }, 500); // Check every 500ms
 
     return () => clearInterval(checkExpiredCoins);
-  }, [gameStarted, gameEnded]);
+  }, [gameStarted, gameEnded, isPaused]);
 
   useEffect(() => {
-    if (!gameStarted || gameEnded) return;
+    if (!gameStarted || gameEnded || isPaused) return;
 
     // Move obstacles
     const moveInterval = setInterval(() => {
@@ -318,10 +381,10 @@ export const GameCanvas = ({
     }, 50);
 
     return () => clearInterval(moveInterval);
-  }, [gameStarted, gameEnded]);
+  }, [gameStarted, gameEnded, isPaused]);
 
   useEffect(() => {
-    if (!gameStarted || gameEnded) return;
+    if (!gameStarted || gameEnded || isPaused) return;
 
     // Move bullseye target slowly
     const moveInterval = setInterval(() => {
@@ -343,7 +406,7 @@ export const GameCanvas = ({
     }, 50);
 
     return () => clearInterval(moveInterval);
-  }, [currentDifficultySettings, gameStarted, gameEnded]);
+  }, [currentDifficultySettings, gameStarted, gameEnded, isPaused]);
 
   const calculateSuccess = (throwPower: number) => {
     // Success rate increases if power is between 60-80 (sweet spot)
@@ -354,7 +417,7 @@ export const GameCanvas = ({
   };
 
   const startCharging = () => {
-    if (isThowing || isBallFlying) return;
+    if (isThrowing || isBallFlying) return;
     
     setIsCharging(true);
     setPower(0);
@@ -393,7 +456,7 @@ export const GameCanvas = ({
 
   // Touch handlers for ping pong flicking
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     
     const touch = e.touches[0];
     touchStartRef.current = {
@@ -404,7 +467,7 @@ export const GameCanvas = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || isThowing || isBallFlying || ballPhase !== 'ready') return;
+    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
     
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchStartRef.current.x;
@@ -416,7 +479,7 @@ export const GameCanvas = ({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || isThowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
+    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
     
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - touchStartRef.current.x;
@@ -444,7 +507,7 @@ export const GameCanvas = ({
   };
 
   const throwBall = (throwPower: number, angle: number = 0) => {
-    if (isThowing || isBallFlying || !gameStarted) return;
+    if (isThrowing || isBallFlying || !gameStarted || isPausedRef.current) return;
 
     setIsThrowing(true);
     setIsBallFlying(true);
@@ -485,9 +548,8 @@ export const GameCanvas = ({
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / flightDuration, 1);
       
-      // Parabolic arc calculation
-      const yProgress = 1 - Math.pow(1 - progress, 2); // Ease out quad for y
-      const arcY = 80 - (yProgress * 75) + (Math.sin(progress * Math.PI) * (arcHeight - 80));
+      // Clean parabolic arc: starts at y=80, peaks at arcHeight, lands at y=5
+      const arcY = 80 + (5 - 80) * progress - Math.sin(progress * Math.PI) * (arcHeight - 42);
       
       // Smooth horizontal movement from start to target
       const currentX = startX + (targetHorizontalPosition - startX) * progress;
@@ -496,11 +558,11 @@ export const GameCanvas = ({
       setBallHorizontalPosition(currentX);
       
       if (progress < 1) {
-        requestAnimationFrame(animateBallFlight);
+        ballFlightRafRef.current = requestAnimationFrame(animateBallFlight);
       }
     };
     
-    requestAnimationFrame(animateBallFlight);
+    ballFlightRafRef.current = requestAnimationFrame(animateBallFlight);
     
     setTimeout(() => {
       // Check for collision mid-flight
@@ -714,7 +776,6 @@ export const GameCanvas = ({
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
-    setShowLeaderboard(false);
     setFinalTime(0);
     toast.info("Game restarted! Good luck!");
   };
@@ -872,14 +933,16 @@ export const GameCanvas = ({
       )}
 
       {/* Game area */}
-      <div 
-        className="relative h-full flex flex-col"
+      <div
+        ref={gameAreaRef}
+        role="main"
+        aria-label="Curb Ball game — aim with the left and right buttons, hold Charge to throw"
+        className="relative h-full flex flex-col game-touch-area"
         onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* HUD - Mobile Responsive */}
-        <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2">
+        <div className="absolute left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2" style={{ top: 'max(0.5rem, env(safe-area-inset-top))' }}>
           <div className="flex items-center gap-2 sm:gap-4">
             {showBackConfirm ? (
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
@@ -911,10 +974,22 @@ export const GameCanvas = ({
                 ← Menu
               </Button>
             )}
+
+            {gameStarted && !gameEnded && (
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={isPaused ? 'Resume game' : 'Pause game'}
+                onClick={() => setIsPaused(p => !p)}
+                className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4 min-w-[44px] min-h-[44px]"
+              >
+                {isPaused ? '▶' : '⏸'}
+              </Button>
+            )}
             
             {ballPhase === 'ready' && (
               <div>
-                <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+                <ThrowMeter value={power} isCharging={isCharging} disabled={isThrowing || isBallFlying} />
               </div>
             )}
           </div>
@@ -1096,7 +1171,7 @@ export const GameCanvas = ({
 
 
         {/* Controls - Mobile Responsive */}
-        <div className="absolute bottom-4 sm:bottom-8 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4">
+        <div className="absolute left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4" style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           
           {/* Movement controls */}
           {ballPhase === 'ready' && (
@@ -1105,7 +1180,7 @@ export const GameCanvas = ({
                 variant="outline"
                 size="default"
                 onClick={moveLeft}
-                disabled={isThowing || isBallFlying}
+                disabled={isThrowing || isBallFlying}
                 className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 ← LEFT
@@ -1119,7 +1194,7 @@ export const GameCanvas = ({
                 variant="outline"
                 size="default"
                 onClick={moveRight}
-                disabled={isThowing || isBallFlying}
+                disabled={isThrowing || isBallFlying}
                 className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 RIGHT →
@@ -1136,33 +1211,52 @@ export const GameCanvas = ({
             }}
             onTouchStart={startCharging}
             onTouchEnd={releaseThrow}
-            disabled={isThowing || isBallFlying}
+            disabled={isThrowing || isBallFlying}
             className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
           >
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
 
+          {/* Charge + utility row */}
+          <div className="flex items-center gap-2 w-full justify-center">
+            <SoundToggle className="flex-none" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={restartGame}
+              aria-label="Restart game"
+              className="flex-none border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground text-xs min-w-[44px] min-h-[44px] px-3"
+            >
+              Restart
+            </Button>
+          </div>
+
           {ballPhase === 'ready' && (
             <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
               <span>Streak: {consecutiveHits}</span>
-              <span className="sm:hidden">• Coins: {coins}</span>
+              <span>• {Math.round(ballHorizontalPosition)}%</span>
             </div>
           )}
         </div>
-
-        {/* Sound toggle buttons */}
-        <SoundToggle className="absolute bottom-2 sm:top-4 left-2 sm:right-24 sm:left-auto z-20" />
-
-        {/* Restart button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={restartGame}
-          className="absolute bottom-2 sm:top-4 right-2 sm:right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
-        >
-          RESTART
-        </Button>
       </div>
+
+      {/* Pause overlay */}
+      {isPaused && gameStarted && !gameEnded && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card/95 rounded-2xl p-8 text-center shadow-2xl border border-border">
+            <div className="text-5xl mb-4">⏸</div>
+            <h2 className="text-3xl font-bold text-foreground mb-6">Paused</h2>
+            <div className="flex flex-col gap-3">
+              <Button size="lg" onClick={() => setIsPaused(false)} className="text-lg font-bold px-10 bg-primary hover:bg-primary/90 min-h-[52px]">
+                ▶ Resume
+              </Button>
+              <Button variant="outline" size="sm" onClick={restartGame} className="border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground min-h-[44px]">
+                Restart
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confetti */}
       {showConfetti && <ConfettiEffect />}

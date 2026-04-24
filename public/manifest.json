@@ -1,0 +1,14 @@
+{
+  "name": "Curb Ball Challenge",
+  "short_name": "Curb Ball",
+  "description": "Throw the ball and hit the curb — a street physics game",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#1a1f2e",
+  "theme_color": "#f97316",
+  "icons": [
+    { "src": "/curbball-logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/curbball-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
