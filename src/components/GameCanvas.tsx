@@ -4,8 +4,6 @@ import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { ThrowMeter } from "./ThrowMeter";
 import { CoinDisplay } from "./CoinDisplay";
-import { FloatingCoins } from "./FloatingCoins";
-import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
 import { SoundToggle } from "./SoundToggle";
@@ -33,6 +31,8 @@ interface BullseyeTarget {
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
+type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "SCORED" | "MISSED" | "RESET";
+
 export type Difficulty = "easy" | "medium" | "hard";
 
 interface GameCanvasProps {
@@ -55,7 +55,6 @@ export const GameCanvas = ({
   onChallengeProgress
 }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
   const [coins, setCoins] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
@@ -69,13 +68,22 @@ export const GameCanvas = ({
   const [gameWon, setGameWon] = useState(false);
   const [power, setPower] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
+  const isChargingRef = useRef(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 30 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
+  const [playState, setPlayState] = useState<PlayState>("IDLE");
+  const [attempts, setAttempts] = useState(5);
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    scaleX: window.innerWidth / 1280,
+    scaleY: window.innerHeight / 720,
+  }));
   
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
@@ -84,8 +92,7 @@ export const GameCanvas = ({
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
-  const chargeSoundIntervalRef = useRef<number | null>(null);
-  const particleIdRef = useRef(0);
+  useEffect(() => { return () => { if (chargeIntervalRef.current) cancelAnimationFrame(chargeIntervalRef.current); }; }, []);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const bullseyeHitsRef = useRef(0);
   const ballFlightRafRef = useRef<number | null>(null);
@@ -100,6 +107,31 @@ export const GameCanvas = ({
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  const gameAreaRef = useRef<HTMLDivElement | null>(null);
+  const lastFrameRef = useRef(0);
+  const obstaclesRef = useRef<Obstacle[]>([]);
+  const bullseyeRef = useRef<BullseyeTarget>({ position: 50, direction: 1 });
+  const playStateRef = useRef<PlayState>("IDLE");
+  const ballPhysicsRef = useRef({
+    x: 50,
+    y: 30,
+    vx: 0,
+    vy: 0,
+    spin: 0,
+    hasBounced: false,
+  });
+
+  useEffect(() => {
+    obstaclesRef.current = obstacles;
+  }, [obstacles]);
+
+  useEffect(() => {
+    bullseyeRef.current = bullseyeTarget;
+  }, [bullseyeTarget]);
+
+  useEffect(() => {
+    playStateRef.current = playState;
+  }, [playState]);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
 
@@ -116,22 +148,16 @@ export const GameCanvas = ({
   // Difficulty settings
   const difficultySettings = {
     easy: {
-      baseSuccessChance: 45,
-      successChanceDecrease: 5,
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
       bullseyeSpeed: 0.5,
     },
     medium: {
-      baseSuccessChance: 35,
-      successChanceDecrease: 7,
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
       bullseyeSpeed: 1.0,
     },
     hard: {
-      baseSuccessChance: 25,
-      successChanceDecrease: 10,
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
       bullseyeSpeed: 1.8,
@@ -139,10 +165,6 @@ export const GameCanvas = ({
   };
 
   const currentDifficultySettings = difficultySettings[difficulty];
-  const baseSuccessChance = currentDifficultySettings.baseSuccessChance;
-  const successChanceDecrease = currentDifficultySettings.successChanceDecrease;
-  
-  const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
   // Keep refs in sync
   useEffect(() => { scoreRef.current = score; }, [score]);
@@ -173,6 +195,27 @@ export const GameCanvas = ({
     }
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scaleX: window.innerWidth / 1280,
+        scaleY: window.innerHeight / 720,
+      });
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Trigger win effect at 100 points
+  useEffect(() => {
+    if (score >= 100 && !gameWon && gameStarted && !gameEnded) {
+      setGameWon(true);
+    }
+  }, [score, gameWon, gameStarted, gameEnded]);
 
   // Timer countdown — recreates when pause state changes so it truly stops
   useEffect(() => {
@@ -247,7 +290,7 @@ export const GameCanvas = ({
     };
   }, []);
 
-  // Handle keyboard controls for horizontal movement
+  // Handle keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
@@ -256,12 +299,27 @@ export const GameCanvas = ({
         setBallHorizontalPosition(prev => Math.max(10, prev - 5));
       } else if (e.key === 'ArrowRight') {
         setBallHorizontalPosition(prev => Math.min(90, prev + 5));
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        startCharging();
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        releaseThrow();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isThrowing, isBallFlying, ballPhase]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isThrowing, isBallFlying, ballPhase, isCharging, gameStarted]);
 
   const moveLeft = () => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
@@ -292,18 +350,6 @@ export const GameCanvas = ({
     const streakBonus = Math.floor(consecutiveHits / 3); // +1 coin every 3 consecutive hits
     
     return baseCoins + streakBonus;
-  };
-
-  const spawnCoinParticles = (amount: number) => {
-    const newParticles = Array.from({ length: Math.min(amount, 8) }, () => ({
-      id: particleIdRef.current++,
-    }));
-    setCoinParticles(newParticles);
-    
-    // Clear particles after animation
-    setTimeout(() => {
-      setCoinParticles([]);
-    }, 2000);
   };
 
   useEffect(() => {
@@ -371,14 +417,23 @@ export const GameCanvas = ({
   useEffect(() => {
     if (!gameStarted || gameEnded || isPaused) return;
 
-    // Move obstacles
-    const moveInterval = setInterval(() => {
+    // Curb is at the TOP of the street div (bottom: 88% in the coordinate system).
+    // Ball starts near the bottom (y=15) and flies upward toward the curb (y=88).
+    const curbY = 90;
+    const gravity = 500 * viewport.scaleY;
+    const restitution = 0.65;
+    let resetTimeout: number | null = null;
+
+    const loop = (timestamp: number) => {
+      if (!lastFrameRef.current) lastFrameRef.current = timestamp;
+      const delta = Math.min((timestamp - lastFrameRef.current) / 1000, 0.05);
+      lastFrameRef.current = timestamp;
+
       setObstacles((prev) =>
         prev
-          .map((obs) => ({ ...obs, position: obs.position + obs.speed }))
+          .map((obs) => ({ ...obs, position: obs.position + obs.speed * delta * 20 }))
           .filter((obs) => obs.position < 110)
       );
-    }, 50);
 
     return () => clearInterval(moveInterval);
   }, [gameStarted, gameEnded, isPaused]);
@@ -389,10 +444,8 @@ export const GameCanvas = ({
     // Move bullseye target slowly
     const moveInterval = setInterval(() => {
       setBullseyeTarget((prev) => {
-        let newPosition = prev.position + (prev.direction * currentDifficultySettings.bullseyeSpeed);
+        let newPosition = prev.position + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * 20;
         let newDirection = prev.direction;
-        
-        // Bounce at edges
         if (newPosition >= 85) {
           newPosition = 85;
           newDirection = -1;
@@ -400,55 +453,152 @@ export const GameCanvas = ({
           newPosition = 15;
           newDirection = 1;
         }
-        
         return { position: newPosition, direction: newDirection };
       });
-    }, 50);
 
     return () => clearInterval(moveInterval);
   }, [currentDifficultySettings, gameStarted, gameEnded, isPaused]);
+      if (playStateRef.current === "BALL_IN_PLAY") {
+        const b = ballPhysicsRef.current;
+        b.vy -= gravity * delta; // gravity pulls down (reduces upward velocity)
+        b.vx += b.spin * delta * 60;
+        b.x += b.vx * delta;
+        b.y += b.vy * delta;
 
-  const calculateSuccess = (throwPower: number) => {
-    // Success rate increases if power is between 60-80 (sweet spot)
-    const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
-    const adjustedChance = isPerfectTiming ? Math.min(75, currentSuccessChance + 30) : currentSuccessChance;
-    
-    return Math.random() * 100 < adjustedChance;
-  };
+        const ballRadius = 2;
+
+        // Ball reaches the curb (top of street) on the way UP
+        if (b.y >= curbY - ballRadius && b.vy > 0 && !b.hasBounced) {
+          b.y = curbY - ballRadius;
+          b.vy = -Math.abs(b.vy) * restitution; // bounce back down
+          b.vx += (Math.random() * 20 - 10);
+          b.hasBounced = true;
+          setBallPhase("hit");
+          soundManager.playImpact();
+
+          // Score immediately at the moment of curb contact
+          const bullseyeHit = Math.abs(bullseyeRef.current.position - b.x) < 6;
+          const hitCurbZone = b.x >= 15 && b.x <= 85;
+          if (hitCurbZone) {
+            const coinsGained = calculateCoinsEarned(70, true);
+            const pointsEarned = bullseyeHit ? 60 : 10;
+            setScore((prev) => prev + pointsEarned);
+            setConsecutiveHits((prev) => prev + 1);
+            setCoins((prev) => prev + coinsGained);
+            setCoinsEarned((prev) => prev + coinsGained);
+            setShowConfetti(true);
+            if (bullseyeHit) bullseyeHitsRef.current += 1;
+            setPlayState("SCORED");
+            playStateRef.current = "SCORED";
+            setBallPhase("bouncing");
+            soundManager.playSuccess();
+          } else {
+            setPlayState("MISSED");
+            playStateRef.current = "MISSED";
+            setBallPhase("missed");
+            soundManager.playFail();
+            setConsecutiveHits(0);
+            setAttempts((prev) => Math.max(prev - 1, 0));
+          }
+        }
+
+        // Obstacles are in the lower portion of the street (y 25–65)
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 5) - b.x) < 6 && b.y >= 25 && b.y <= 65
+        );
+        if (obstacleHit && playStateRef.current === "BALL_IN_PLAY") {
+          setBallPhase("missed");
+          setPlayState("MISSED");
+          playStateRef.current = "MISSED";
+        }
+
+        // Off-screen or fell back without bouncing
+        if (
+          playStateRef.current === "BALL_IN_PLAY" &&
+          (b.y < -10 || b.y > 130 || b.x < -10 || b.x > 110)
+        ) {
+          setPlayState("MISSED");
+          playStateRef.current = "MISSED";
+          setBallPhase("missed");
+          setConsecutiveHits(0);
+          setAttempts((prev) => Math.max(prev - 1, 0));
+        }
+
+        setBallPosition({ x: b.x, y: b.y });
+        setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+      }
+
+      if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
+        setPlayState("RESET");
+        resetTimeout = window.setTimeout(() => {
+          ballPhysicsRef.current = { x: 50, y: 30, vx: 0, vy: 0, spin: 0, hasBounced: false };
+          setBallPosition({ x: 50, y: 30 });
+          setBallHorizontalPosition(50);
+          setIsBallFlying(false);
+          setIsThrowing(false);
+          setPower(0);
+          setBallPhase("ready");
+          setPlayState("IDLE");
+          playStateRef.current = "IDLE";
+          setShowConfetti(false);
+        }, 1500);
+      }
+
+      requestAnimationFrame(loop);
+    };
+
+    const frame = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (resetTimeout) clearTimeout(resetTimeout);
+      lastFrameRef.current = 0;
+    };
+  }, [gameStarted, gameEnded, currentDifficultySettings.bullseyeSpeed, viewport.scaleY]);
 
   const startCharging = () => {
     if (isThrowing || isBallFlying) return;
     
     setIsCharging(true);
+    isChargingRef.current = true;
     setPower(0);
     
-    // Play charging sound periodically
-    chargeSoundIntervalRef.current = window.setInterval(() => {
-      soundManager.playCharging();
-    }, 200);
-    
-    // Charge power over time
-    chargeIntervalRef.current = window.setInterval(() => {
+    let lastTime = performance.now();
+    let soundTimer = 0;
+
+    const chargeLoop = (timestamp: number) => {
+      const delta = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+      soundTimer += delta;
+
+      if (soundTimer >= 0.2) {
+        soundManager.playCharging();
+        soundTimer = 0;
+      }
+
       setPower((prev) => {
-        if (prev >= 100) {
-          return 0; // Loop back to 0 when reaching 100
-        }
-        return prev + 2; // Increase by 2 every interval
+        let next = prev + 40 * delta; // 40 units per second, takes 2.5s to 100
+        if (next >= 100) next -= 100;
+        return next;
       });
-    }, 50);
+
+      if (isChargingRef.current) {
+        chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+      }
+    };
+
+    if (isChargingRef.current) {
+      chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+    }
   };
 
   const releaseThrow = () => {
     if (!isCharging || !gameStarted) return;
     
     setIsCharging(false);
+    isChargingRef.current = false;
     if (chargeIntervalRef.current) {
-      clearInterval(chargeIntervalRef.current);
+      cancelAnimationFrame(chargeIntervalRef.current);
       chargeIntervalRef.current = null;
-    }
-    if (chargeSoundIntervalRef.current) {
-      clearInterval(chargeSoundIntervalRef.current);
-      chargeSoundIntervalRef.current = null;
     }
     
     throwBall(power, swipeAngle);
@@ -459,10 +609,20 @@ export const GameCanvas = ({
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     
     const touch = e.touches[0];
+  // Pointer handlers for unified desktop/mobile flicking
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+    const localY = e.clientY - rect.top;
+
+    setPlayState("AIMING");
+    setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
     touchStartRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      time: Date.now()
+      x: localX,
+      y: localY,
+      time: performance.now()
     };
   };
 
@@ -500,24 +660,65 @@ export const GameCanvas = ({
     // Only throw if swipe is significant (minimum distance)
     if (distance > 30) {
       throwBall(swipePower, angle); // playThrow() is called inside throwBall
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+
+    // Always track horizontal position — works for mouse hover and touch drag
+    setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
+
+    if (touchStartRef.current) {
+      const localY = e.clientY - rect.top;
+      const deltaX = localX - touchStartRef.current.x;
+      const deltaY = localY - touchStartRef.current.y;
+      const angle = Math.atan2(deltaX, -deltaY) * (180 / Math.PI);
+      setSwipeAngle(angle);
     }
-    
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+    const localY = e.clientY - rect.top;
+    const deltaX = localX - touchStartRef.current.x;
+    const deltaY = localY - touchStartRef.current.y;
+    const duration = Math.max((performance.now() - touchStartRef.current.time) / 1000, 0.03);
+    const velocityX = deltaX / duration;
+    const velocityY = deltaY / duration;
+
+    if (Math.hypot(deltaX, deltaY) > 20) {
+      throwBallFromGesture(velocityX, velocityY, rect);
+    }
+
     touchStartRef.current = null;
     setSwipeAngle(0);
+    setPlayState("THROWING");
   };
 
   const throwBall = (throwPower: number, angle: number = 0) => {
     if (isThrowing || isBallFlying || !gameStarted || isPausedRef.current) return;
+    const speed = (320 + Math.min(throwPower, 100) * 1.1) * Math.max(0.8, viewport.scaleY);
+    const vx = Math.sin((angle * Math.PI) / 180) * speed * 0.55 * 0.045;
+    const vy = speed;
+    throwBallFromVelocity(vx, vy);
+  };
 
+  const throwBallFromGesture = (velocityX: number, velocityY: number, rect: DOMRect) => {
+    const mappedVx = Math.max(-520, Math.min(520, (velocityX / rect.width) * 700)) * 0.045;
+    const mappedVy = Math.max(320, Math.min(460, (-velocityY / rect.height) * 900));
+    throwBallFromVelocity(mappedVx, mappedVy);
+  };
+
+  const throwBallFromVelocity = (vx: number, vy: number) => {
+    if (isThrowing || isBallFlying || !gameStarted) return;
     setIsThrowing(true);
     setIsBallFlying(true);
-    const success = calculateSuccess(throwPower);
-    
-    // Apply horizontal movement based on angle
-    const angleInfluence = Math.sin(angle * Math.PI / 180) * 15;
-    const targetHorizontalPosition = Math.max(10, Math.min(90, ballHorizontalPosition + angleInfluence));
-
-    // Play throw sound
+    setBallPhase("flying");
+    setPlayState("BALL_IN_PLAY");
     soundManager.playThrow();
 
     // Check for collision with obstacles during flight
@@ -750,6 +951,14 @@ export const GameCanvas = ({
         }
       }, 300);
     }, flightDuration * 0.6 + 800);
+    ballPhysicsRef.current = {
+      x: ballHorizontalPosition,
+      y: 30,
+      vx,
+      vy,
+      spin: vx * 0.0015,
+      hasBounced: false,
+    };
   };
 
   const restartGame = () => {
@@ -764,7 +973,6 @@ export const GameCanvas = ({
     setGamesPlayed(newGamesPlayed);
 
     setScore(0);
-    setLevel(1);
     setCoinsEarned(0);
     setConsecutiveHits(0);
     bullseyeHitsRef.current = 0;
@@ -773,10 +981,12 @@ export const GameCanvas = ({
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 80 });
+    setBallPosition({ x: 50, y: 30 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setFinalTime(0);
+    setAttempts(5);
+    setPlayState("IDLE");
     toast.info("Game restarted! Good luck!");
   };
 
@@ -808,9 +1018,7 @@ export const GameCanvas = ({
     });
   };
 
-  const handleRewardEarned = (amount: number) => {
-    setCoins(coins + amount);
-  };
+
 
 
   const formatTime = (seconds: number) => {
@@ -850,12 +1058,12 @@ export const GameCanvas = ({
 
   return (
     <div 
-      className="relative w-full h-screen overflow-hidden bg-center bg-no-repeat"
+      className="fixed inset-0 m-0 p-0 block w-screen h-screen bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: 'cover' }}
     >
       {/* Starting Screen */}
       {!gameStarted && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
             <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
             
@@ -864,7 +1072,7 @@ export const GameCanvas = ({
                 <div className="text-2xl">🎯</div>
                 <div>
                   <h3 className="font-semibold text-lg">Aim & Throw</h3>
-                  <p className="text-sm">Use ← / → buttons (or arrow keys) to aim, then <strong>hold the throw button</strong> to charge power and release to throw. On mobile, swipe up to throw!</p>
+                  <p className="text-sm">Move your <strong>finger</strong> (mobile) or <strong>mouse</strong> (desktop) to aim. Hold the throw button or press <strong>Space</strong> to charge power, then release to throw!</p>
                 </div>
               </div>
 
@@ -902,7 +1110,10 @@ export const GameCanvas = ({
             </div>
             
             <button
-              onClick={() => setGameStarted(true)}
+              onClick={() => {
+                setGameStarted(true);
+                setPlayState("IDLE");
+              }}
               className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
             >
               Start Game
@@ -940,6 +1151,10 @@ export const GameCanvas = ({
         className="relative h-full flex flex-col game-touch-area"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        className="relative h-full w-full"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         {/* HUD - Mobile Responsive */}
         <div className="absolute left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2" style={{ top: 'max(0.5rem, env(safe-area-inset-top))' }}>
@@ -1013,6 +1228,11 @@ export const GameCanvas = ({
                     timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
                   }`}>{formatTime(timeRemaining)}</div>
                 </div>
+                <div className="h-6 sm:h-8 w-px bg-border" />
+                <div className="text-center">
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold whitespace-nowrap"><span className="sm:hidden">LIVES</span><span className="hidden sm:inline">LIVES/ATTEMPTS</span></div>
+                  <div className="text-lg sm:text-3xl font-bold text-orange-400">{attempts}</div>
+                </div>
               </div>
             </Card>
             
@@ -1022,13 +1242,13 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Street and curb */}
-        <div className="flex-1 flex items-end">
-          <div className={`w-full h-64 relative transition-all duration-1000 ${
-            gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
-          }`} style={{ 
-            background: gameWon ? undefined : "hsl(var(--game-street))" 
-          }}>
+        {/* Street — absolute at bottom so backdrop fills screen above */}
+        <div className={`absolute bottom-0 left-0 right-0 transition-all duration-1000 ${
+          gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
+        }`} style={{
+          background: gameWon ? undefined : "hsl(var(--game-street))",
+          height: `${Math.max(220, viewport.height * 0.38)}px`,
+        }}>
             {/* Curb */}
             <div
               className={`absolute top-0 left-0 right-0 h-4 transition-all duration-1000 ${
@@ -1117,8 +1337,8 @@ export const GameCanvas = ({
             {obstacles.map((obs) => (
               <div
                 key={obs.id}
-                className="absolute bottom-16 transition-all"
-                style={{ left: `${obs.position}%` }}
+                className="absolute transition-all"
+                style={{ left: `${obs.position}%`, bottom: '12%' }}
               >
                 <div
                   className={`${
@@ -1130,9 +1350,34 @@ export const GameCanvas = ({
               </div>
             ))}
 
+            {/* Aiming guide — easy/medium only, before throw */}
+            {ballPhase === 'ready' && gameStarted && difficulty !== 'hard' && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none opacity-70 animate-pulse"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
+                  </marker>
+                </defs>
+                <line
+                  x1={ballHorizontalPosition}
+                  y1={100 - ballPosition.y}
+                  x2={bullseyeTarget.position}
+                  y2="10"
+                  stroke="#facc15"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                  markerEnd="url(#arrowhead)"
+                />
+              </svg>
+            )}
+
             {/* Ball */}
             <div
-              className={`absolute w-16 h-16 ${
+              className={`absolute ${
                 ballPhase === 'flying' ? 'transition-all [transition-duration:800ms] ease-out' :
                 ballPhase === 'hit' ? 'scale-90' :
                 ballPhase === 'bouncing' ? 'transition-all [transition-duration:800ms] ease-in-out' :
@@ -1140,6 +1385,8 @@ export const GameCanvas = ({
                 'transition-all duration-200'
               }`}
               style={{
+                width: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
+                height: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
                 left: `${ballPosition.x}%`,
                 bottom: `${ballPosition.y}%`,
                 filter: ballPhase === 'hit' ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
@@ -1216,6 +1463,32 @@ export const GameCanvas = ({
           >
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
+        {/* Controls overlay — sits on top of the street at the bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 pb-2 pt-1 px-2 flex flex-col items-center gap-1 bg-black/25 backdrop-blur-sm">
+          {/* Throw button + utility buttons row */}
+          <div className="flex items-center gap-2 w-full justify-center">
+            <SoundToggle className="flex-none z-20" />
+
+            <Button
+              size="lg"
+              onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+              onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+              onPointerLeave={() => { if (isCharging) releaseThrow(); }}
+              disabled={isThrowing || isBallFlying}
+              className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none flex-1 sm:flex-none"
+            >
+              {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={restartGame}
+              className="flex-none border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
+            >
+              RESTART
+            </Button>
+          </div>
 
           {/* Charge + utility row */}
           <div className="flex items-center gap-2 w-full justify-center">
@@ -1232,9 +1505,11 @@ export const GameCanvas = ({
           </div>
 
           {ballPhase === 'ready' && (
-            <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
+            <div className="text-xs text-foreground/60 font-semibold flex items-center gap-3">
               <span>Streak: {consecutiveHits}</span>
               <span>• {Math.round(ballHorizontalPosition)}%</span>
+              <span>•</span>
+              <span>{Math.round(ballHorizontalPosition)}%</span>
             </div>
           )}
         </div>
@@ -1261,29 +1536,6 @@ export const GameCanvas = ({
       {/* Confetti */}
       {showConfetti && <ConfettiEffect />}
       
-      {/* Floating coins animation */}
-      {showFloatingCoins && (
-        <FloatingCoins 
-          amount={floatingCoinAmount} 
-          onComplete={() => setShowFloatingCoins(false)}
-        />
-      )}
-      
-      {/* Coin particles */}
-      {coinParticles.map((particle, index) => (
-        <CoinParticle
-          key={particle.id}
-          startX={window.innerWidth / 2}
-          startY={window.innerHeight * 0.2}
-          targetX={window.innerWidth / 2 + 200}
-          targetY={40}
-          delay={index * 100}
-          onComplete={() => {
-            setCoinParticles(prev => prev.filter(p => p.id !== particle.id));
-          }}
-        />
-      ))}
-
       {/* Win modal */}
       {gameEnded && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">

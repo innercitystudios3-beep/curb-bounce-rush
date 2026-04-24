@@ -423,8 +423,8 @@ const Index = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-background">
-      <GameCanvas 
+    <div className="w-full h-screen">
+      <GameCanvas
         difficulty={difficulty} 
         onBackToDifficulty={handleBackToDifficulty}
         backdropImage={currentBackdrop}
