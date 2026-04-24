@@ -123,11 +123,11 @@ const Index = () => {
         setAchievements(JSON.parse(storedAchievements));
       }
       
-      const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
-      const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
-      const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-      const coinsBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0');
-      const coinsSpent = parseInt(localStorage.getItem('game-coins-spent') || '0');
+      const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0', 10);
+      const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0', 10);
+      const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0', 10);
+      const coinsBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0', 10);
+      const coinsSpent = parseInt(localStorage.getItem('game-coins-spent') || '0', 10);
 
       const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
       if (storedChallenges) {
@@ -225,11 +225,11 @@ const Index = () => {
   const handlePurchaseWithCoins = (backdrop: Backdrop) => {
     const newOwned = [...ownedBackdrops, backdrop.id];
     setOwnedBackdrops(newOwned);
-    setCurrentCoins(prev => prev - backdrop.coinPrice);
+    setCurrentCoins(prev => Math.max(0, prev - backdrop.coinPrice));
     setCurrentBackdrop(backdrop.id);
 
     // Persist the deduction so coins don't reappear on reload
-    const prevSpent = parseInt(localStorage.getItem('game-coins-spent') || '0');
+    const prevSpent = parseInt(localStorage.getItem('game-coins-spent') || '0', 10);
     localStorage.setItem('game-coins-spent', (prevSpent + backdrop.coinPrice).toString());
     localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
     localStorage.setItem('currentBackdrop', backdrop.id);
@@ -253,11 +253,11 @@ const Index = () => {
   const handleBallPurchaseWithCoins = (ball: BallSkin) => {
     const newOwned = [...ownedBalls, ball.id];
     setOwnedBalls(newOwned);
-    setCurrentCoins(prev => prev - ball.coinPrice);
+    setCurrentCoins(prev => Math.max(0, prev - ball.coinPrice));
     setCurrentBall(ball.id);
 
     // Persist the deduction so coins don't reappear on reload
-    const prevSpent = parseInt(localStorage.getItem('game-coins-spent') || '0');
+    const prevSpent = parseInt(localStorage.getItem('game-coins-spent') || '0', 10);
     localStorage.setItem('game-coins-spent', (prevSpent + ball.coinPrice).toString());
     localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
     localStorage.setItem('currentBall', ball.id);
@@ -323,7 +323,7 @@ const Index = () => {
           if (completed && !challenge.completed) {
             setCurrentCoins(prev => prev + challenge.coinReward);
             // Persist bonus coins so they survive a page reload
-            const prevBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0');
+            const prevBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0', 10);
             localStorage.setItem('game-coins-bonus', (prevBonus + challenge.coinReward).toString());
             toast({
               title: "🎯 Daily Challenge Complete!",

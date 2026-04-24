@@ -120,3 +120,19 @@ All colors MUST be HSL.
     height: 100%;
   }
 }
+
+/* Safe area utilities for iPhone notch / home bar */
+.safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+.safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.safe-left { padding-left: max(0.5rem, env(safe-area-inset-left)); }
+.safe-right { padding-right: max(0.5rem, env(safe-area-inset-right)); }
+
+/* Prevent page scroll/zoom inside game */
+.game-touch-area { touch-action: none; }
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse, .animate-bounce, .animate-spin, .animate-ping {
+    animation: none;
+  }
+}

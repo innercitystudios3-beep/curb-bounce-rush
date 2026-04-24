@@ -23,8 +23,14 @@ const MAX_ENTRIES = 10;
 // eslint-disable-next-line react-refresh/only-export-components
 export const saveScore = (score: number, difficulty: "easy" | "medium" | "hard") => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  const entries: LeaderboardEntry[] = stored ? JSON.parse(stored) : [];
-  
+  let entries: LeaderboardEntry[] = [];
+  try {
+    entries = stored ? JSON.parse(stored) : [];
+  } catch {
+    entries = [];
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   const newEntry: LeaderboardEntry = {
     rank: 0,
     score,
@@ -57,8 +63,14 @@ export const saveScore = (score: number, difficulty: "easy" | "medium" | "hard")
 export const getScores = (difficulty?: "easy" | "medium" | "hard"): LeaderboardEntry[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return [];
-  
-  const entries: LeaderboardEntry[] = JSON.parse(stored);
+
+  let entries: LeaderboardEntry[] = [];
+  try {
+    entries = JSON.parse(stored);
+  } catch {
+    entries = [];
+    localStorage.removeItem(STORAGE_KEY);
+  }
   
   if (difficulty) {
     return entries
