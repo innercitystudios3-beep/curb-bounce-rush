@@ -3,9 +3,44 @@
  * Handles all FBInstant API interactions with graceful fallbacks
  */
 
+interface FBInstantAdInstance {
+  loadAsync: () => Promise<void>;
+  showAsync: () => Promise<void>;
+}
+
+interface FBInstantLeaderboard {
+  setScoreAsync: (score: number, extraData?: string) => Promise<void>;
+  getEntriesAsync: (count: number, offset: number) => Promise<unknown[]>;
+}
+
+interface FBInstantAPI {
+  initializeAsync: () => Promise<void>;
+  setLoadingProgress: (progress: number) => void;
+  startGameAsync: () => Promise<void>;
+  player: {
+    getDataAsync: (keys: string[]) => Promise<Record<string, unknown>>;
+    setDataAsync: (data: Record<string, unknown>) => Promise<void>;
+    getName: () => string;
+    getPhoto: () => string;
+  };
+  shareAsync: (payload: {
+    intent: 'SHARE' | 'REQUEST' | 'CHALLENGE' | 'INVITE';
+    text?: string;
+    image?: string;
+    data?: unknown;
+  }) => Promise<void>;
+  getLeaderboardAsync: (name: string) => Promise<FBInstantLeaderboard>;
+  getRewardedVideoAsync: (placementId: string) => Promise<FBInstantAdInstance>;
+  getInterstitialAdAsync: (placementId: string) => Promise<FBInstantAdInstance>;
+  context: {
+    getID: () => string | null;
+    getPlayersAsync: () => Promise<unknown[]>;
+  };
+}
+
 declare global {
   interface Window {
-    FBInstant?: any;
+    FBInstant?: FBInstantAPI;
   }
 }
 
@@ -80,7 +115,7 @@ class FBInstantManager {
   /**
    * Get player data
    */
-  async getPlayerDataAsync(keys: string[]): Promise<any> {
+  async getPlayerDataAsync(keys: string[]): Promise<Record<string, unknown>> {
     if (!this.isSupported || !this.isInitialized) {
       return {};
     }
@@ -96,7 +131,7 @@ class FBInstantManager {
   /**
    * Save player data
    */
-  async setPlayerDataAsync(data: Record<string, any>): Promise<void> {
+  async setPlayerDataAsync(data: Record<string, unknown>): Promise<void> {
     if (!this.isSupported || !this.isInitialized) {
       return;
     }
@@ -148,7 +183,7 @@ class FBInstantManager {
     intent: 'SHARE' | 'REQUEST' | 'CHALLENGE' | 'INVITE';
     text?: string;
     image?: string;
-    data?: any;
+    data?: unknown;
   }): Promise<void> {
     if (!this.isSupported || !this.isInitialized) {
       console.log('Share not available in web mode');
@@ -166,7 +201,7 @@ class FBInstantManager {
   /**
    * Get or create a leaderboard
    */
-  async getLeaderboardAsync(name: string): Promise<any> {
+  async getLeaderboardAsync(name: string): Promise<FBInstantLeaderboard | null> {
     if (!this.isSupported || !this.isInitialized) {
       return null;
     }
@@ -201,7 +236,7 @@ class FBInstantManager {
   /**
    * Get leaderboard entries
    */
-  async getLeaderboardEntries(leaderboardName: string, count: number = 10): Promise<any[]> {
+  async getLeaderboardEntries(leaderboardName: string, count: number = 10): Promise<unknown[]> {
     if (!this.isSupported || !this.isInitialized) {
       return [];
     }
@@ -238,7 +273,7 @@ class FBInstantManager {
   /**
    * Get players in current context
    */
-  async getPlayersInContext(): Promise<any[]> {
+  async getPlayersInContext(): Promise<unknown[]> {
     if (!this.isSupported || !this.isInitialized) {
       return [];
     }
@@ -305,7 +340,7 @@ class FBInstantManager {
   /**
    * Preload interstitial ad for later use
    */
-  async preloadInterstitialAdAsync(): Promise<any> {
+  async preloadInterstitialAdAsync(): Promise<FBInstantAdInstance | null> {
     if (!this.isSupported || !this.isInitialized) {
       return null;
     }

@@ -61,7 +61,7 @@ export const GameCanvas = ({
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [preloadedInterstitial, setPreloadedInterstitial] = useState<any>(null);
+  const [preloadedInterstitial, setPreloadedInterstitial] = useState<unknown>(null);
   const [showFloatingCoins, setShowFloatingCoins] = useState(false);
   const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
   const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
@@ -169,6 +169,7 @@ export const GameCanvas = ({
     }, 1000);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameEnded, timeRemaining, score]);
 
   // Handle keyboard controls for horizontal movement
@@ -979,10 +980,10 @@ export const GameCanvas = ({
             {/* Ball */}
             <div
               className={`absolute w-16 h-16 ${
-                ballPhase === 'flying' ? 'transition-all duration-[800ms] ease-out' :
+                ballPhase === 'flying' ? 'transition-all [transition-duration:800ms] ease-out' :
                 ballPhase === 'hit' ? 'scale-90' :
-                ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
-                ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
+                ballPhase === 'bouncing' ? 'transition-all [transition-duration:800ms] ease-in-out' :
+                ballPhase === 'missed' ? 'transition-all [transition-duration:600ms] ease-in opacity-50' :
                 'transition-all duration-200'
               }`}
               style={{
