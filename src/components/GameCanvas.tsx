@@ -292,11 +292,12 @@ export const GameCanvas = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
-      
+
       if (e.key === 'ArrowLeft') {
         setBallHorizontalPosition(prev => Math.max(10, prev - 5));
       } else if (e.key === 'ArrowRight') {
         setBallHorizontalPosition(prev => Math.min(90, prev + 5));
+      }
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         startCharging();
@@ -310,8 +311,6 @@ export const GameCanvas = ({
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThrowing, isBallFlying, ballPhase]);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -433,14 +432,7 @@ export const GameCanvas = ({
           .filter((obs) => obs.position < 110)
       );
 
-    return () => clearInterval(moveInterval);
-  }, [gameStarted, gameEnded, isPaused]);
-
-  useEffect(() => {
-    if (!gameStarted || gameEnded || isPaused) return;
-
-    // Move bullseye target slowly
-    const moveInterval = setInterval(() => {
+      // Move bullseye target slowly
       setBullseyeTarget((prev) => {
         let newPosition = prev.position + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * 20;
         let newDirection = prev.direction;
@@ -453,9 +445,6 @@ export const GameCanvas = ({
         }
         return { position: newPosition, direction: newDirection };
       });
-
-    return () => clearInterval(moveInterval);
-  }, [currentDifficultySettings, gameStarted, gameEnded, isPaused]);
       if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
         b.vy -= gravity * delta; // gravity pulls down (reduces upward velocity)
@@ -602,12 +591,7 @@ export const GameCanvas = ({
     throwBall(power, swipeAngle);
   };
 
-  // Touch handlers for ping pong flicking
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
-    
-    const touch = e.touches[0];
-  // Pointer handlers for unified desktop/mobile flicking
+  // Pointer handlers for unified desktop/mobile input
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
@@ -624,47 +608,12 @@ export const GameCanvas = ({
     };
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
-    
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartRef.current.x;
-    const deltaY = touch.clientY - touchStartRef.current.y;
-    
-    // Calculate angle from swipe direction (left/right)
-    const angle = Math.atan2(deltaX, -deltaY) * (180 / Math.PI);
-    setSwipeAngle(angle);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
-    
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStartRef.current.x;
-    const deltaY = touch.clientY - touchStartRef.current.y;
-    const deltaTime = Date.now() - touchStartRef.current.time;
-    
-    // Calculate swipe velocity
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    const velocity = distance / deltaTime; // pixels per millisecond
-    
-    // Convert velocity to power (0-100)
-    // Fast swipes = more power
-    const swipePower = Math.min(100, Math.max(10, velocity * 50));
-    
-    // Calculate angle from swipe direction
-    const angle = Math.atan2(deltaX, -deltaY) * (180 / Math.PI);
-    
-    // Only throw if swipe is significant (minimum distance)
-    if (distance > 30) {
-      throwBall(swipePower, angle); // playThrow() is called inside throwBall
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
 
-    // Always track horizontal position — works for mouse hover and touch drag
     setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
 
     if (touchStartRef.current) {
@@ -1146,9 +1095,6 @@ export const GameCanvas = ({
         ref={gameAreaRef}
         role="main"
         aria-label="Curb Ball game — aim with the left and right buttons, hold Charge to throw"
-        className="relative h-full flex flex-col game-touch-area"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         className="relative h-full w-full"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
