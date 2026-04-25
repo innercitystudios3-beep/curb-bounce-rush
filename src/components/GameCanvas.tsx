@@ -72,7 +72,7 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 30 });
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 80.5 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
@@ -104,6 +104,11 @@ export const GameCanvas = ({
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const ROAD_TOP_PERCENT = 70;
+  const ROAD_HEIGHT_PERCENT = 30;
+  const CURB_Y_PERCENT = ROAD_TOP_PERCENT;
+  const PLAYER_START_Y = ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.35;
+  const TARGET_Y = ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.15;
   const isPausedRef = useRef(false);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   const lastFrameRef = useRef(0);
@@ -112,7 +117,7 @@ export const GameCanvas = ({
   const playStateRef = useRef<PlayState>("IDLE");
   const ballPhysicsRef = useRef({
     x: 50,
-    y: 30,
+    y: 80.5,
     vx: 0,
     vy: 0,
     spin: 0,
@@ -208,6 +213,17 @@ export const GameCanvas = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   // Trigger win effect at 100 points
   useEffect(() => {
     if (score >= 100 && !gameWon && gameStarted && !gameEnded) {
@@ -265,7 +281,6 @@ export const GameCanvas = ({
         setIsCharging(false);
         isChargingRef.current = false;
         if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current);
-        if (chargeSoundIntervalRef.current) clearInterval(chargeSoundIntervalRef.current);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -414,11 +429,8 @@ export const GameCanvas = ({
   useEffect(() => {
     if (!gameStarted || gameEnded || isPaused) return;
 
-    // Curb is at the TOP of the street div (bottom: 88% in the coordinate system).
-    // Ball starts near the bottom (y=15) and flies upward toward the curb (y=88).
-    const curbY = 90;
-    const gravity = 500 * viewport.scaleY;
-    const restitution = 0.65;
+    const gravity = 160;
+    const restitution = 0.62;
     let resetTimeout: number | null = null;
 
     const loop = (timestamp: number) => {
@@ -432,7 +444,6 @@ export const GameCanvas = ({
           .filter((obs) => obs.position < 110)
       );
 
-      // Move bullseye target slowly
       setBullseyeTarget((prev) => {
         let newPosition = prev.position + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * 20;
         let newDirection = prev.direction;
@@ -445,70 +456,84 @@ export const GameCanvas = ({
         }
         return { position: newPosition, direction: newDirection };
       });
+
       if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
-        b.vy -= gravity * delta; // gravity pulls down (reduces upward velocity)
-        b.vx += b.spin * delta * 60;
+        b.vy += gravity * delta;
         b.x += b.vx * delta;
         b.y += b.vy * delta;
 
-        const ballRadius = 2;
-
-        // Ball reaches the curb (top of street) on the way UP
-        if (b.y >= curbY - ballRadius && b.vy > 0 && !b.hasBounced) {
-          b.y = curbY - ballRadius;
-          b.vy = -Math.abs(b.vy) * restitution; // bounce back down
-          b.vx += (Math.random() * 20 - 10);
-          b.hasBounced = true;
-          setBallPhase("hit");
-          soundManager.playImpact();
-
-          // Score immediately at the moment of curb contact
-          const bullseyeHit = Math.abs(bullseyeRef.current.position - b.x) < 6;
-          const hitCurbZone = b.x >= 15 && b.x <= 85;
-          if (hitCurbZone) {
-            const coinsGained = calculateCoinsEarned(70, true);
-            const pointsEarned = bullseyeHit ? 60 : 10;
-            setScore((prev) => prev + pointsEarned);
-            setConsecutiveHits((prev) => prev + 1);
-            setCoins((prev) => prev + coinsGained);
-            setCoinsEarned((prev) => prev + coinsGained);
-            setShowConfetti(true);
-            if (bullseyeHit) bullseyeHitsRef.current += 1;
-            setPlayState("SCORED");
-            playStateRef.current = "SCORED";
-            setBallPhase("bouncing");
-            soundManager.playSuccess();
-          } else {
-            setPlayState("MISSED");
-            playStateRef.current = "MISSED";
-            setBallPhase("missed");
-            soundManager.playFail();
-            setConsecutiveHits(0);
-            setAttempts((prev) => Math.max(prev - 1, 0));
-          }
+        if (b.x <= 5 || b.x >= 95) {
+          b.x = Math.max(5, Math.min(95, b.x));
+          b.vx *= -0.8;
         }
 
-        // Obstacles are in the lower portion of the street (y 25–65)
         const obstacleHit = obstaclesRef.current.some(
-          (obs) => Math.abs((obs.position + 5) - b.x) < 6 && b.y >= 25 && b.y <= 65
+          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 5 && b.y <= 94
         );
-        if (obstacleHit && playStateRef.current === "BALL_IN_PLAY") {
+
+        if (obstacleHit) {
           setBallPhase("missed");
           setPlayState("MISSED");
           playStateRef.current = "MISSED";
-        }
+          soundManager.playFail();
+          setConsecutiveHits(0);
+          onChallengeProgress?.("perfect_streak", 0);
+          setAttempts((prev) => Math.max(prev - 1, 0));
+        } else if (b.y <= TARGET_Y && b.vy < 0 && !b.hasBounced) {
+          b.y = TARGET_Y;
+          b.vy = Math.abs(b.vy) * restitution;
+          b.hasBounced = true;
+          setBallPhase("bouncing");
+          soundManager.playImpact();
 
-        // Off-screen or fell back without bouncing
-        if (
-          playStateRef.current === "BALL_IN_PLAY" &&
-          (b.y < -10 || b.y > 130 || b.x < -10 || b.x > 110)
-        ) {
+          const hitCurbZone = b.x >= 12 && b.x <= 88;
+          const bullseyeHit = Math.abs(bullseyeRef.current.position - b.x) < 6;
+          if (hitCurbZone) {
+            const pointsEarned = bullseyeHit ? 60 : 10;
+            const coinsGained = calculateCoinsEarned(power, true);
+            setScore((prev) => {
+              const newScore = prev + pointsEarned;
+              onAchievementProgress?.("first_1000", newScore);
+              onChallengeProgress?.("score_500", newScore);
+              return newScore;
+            });
+            setConsecutiveHits((prev) => {
+              const newStreak = prev + 1;
+              onAchievementProgress?.("streak_10", newStreak);
+              onChallengeProgress?.("perfect_streak", newStreak);
+              return newStreak;
+            });
+            setCoins((prev) => prev + coinsGained);
+            setCoinsEarned((prev) => prev + coinsGained);
+            if (bullseyeHit) {
+              bullseyeHitsRef.current += 1;
+              onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+            }
+            setShowConfetti(true);
+            setPlayState("SCORED");
+            playStateRef.current = "SCORED";
+            soundManager.playSuccess();
+          } else {
+            setBallPhase("missed");
+            setPlayState("MISSED");
+            playStateRef.current = "MISSED";
+            soundManager.playFail();
+            setConsecutiveHits(0);
+            onChallengeProgress?.("perfect_streak", 0);
+            setAttempts((prev) => Math.max(prev - 1, 0));
+          }
+        } else if (!b.hasBounced && b.y < -5) {
           setPlayState("MISSED");
           playStateRef.current = "MISSED";
           setBallPhase("missed");
           setConsecutiveHits(0);
+          onChallengeProgress?.("perfect_streak", 0);
           setAttempts((prev) => Math.max(prev - 1, 0));
+        } else if (b.hasBounced && b.y >= PLAYER_START_Y) {
+          b.y = PLAYER_START_Y;
+          b.vx = 0;
+          b.vy = 0;
         }
 
         setBallPosition({ x: b.x, y: b.y });
@@ -518,8 +543,8 @@ export const GameCanvas = ({
       if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
         setPlayState("RESET");
         resetTimeout = window.setTimeout(() => {
-          ballPhysicsRef.current = { x: 50, y: 30, vx: 0, vy: 0, spin: 0, hasBounced: false };
-          setBallPosition({ x: 50, y: 30 });
+          ballPhysicsRef.current = { x: 50, y: PLAYER_START_Y, vx: 0, vy: 0, spin: 0, hasBounced: false };
+          setBallPosition({ x: 50, y: PLAYER_START_Y });
           setBallHorizontalPosition(50);
           setIsBallFlying(false);
           setIsThrowing(false);
@@ -528,7 +553,7 @@ export const GameCanvas = ({
           setPlayState("IDLE");
           playStateRef.current = "IDLE";
           setShowConfetti(false);
-        }, 1500);
+        }, 950);
       }
 
       requestAnimationFrame(loop);
@@ -540,7 +565,7 @@ export const GameCanvas = ({
       if (resetTimeout) clearTimeout(resetTimeout);
       lastFrameRef.current = 0;
     };
-  }, [gameStarted, gameEnded, currentDifficultySettings.bullseyeSpeed, viewport.scaleY]);
+  }, [PLAYER_START_Y, ROAD_TOP_PERCENT, TARGET_Y, currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, power]);
 
   const startCharging = () => {
     if (isThrowing || isBallFlying) return;
@@ -666,246 +691,17 @@ export const GameCanvas = ({
     setIsBallFlying(true);
     setBallPhase("flying");
     setPlayState("BALL_IN_PLAY");
+    setShowConfetti(false);
     soundManager.playThrow();
-
-    // Check for collision with obstacles during flight
-    const checkObstacleCollision = () => {
-      return obstacles.some(obs => {
-        const obstacleCenterX = obs.position + (obs.type === 'car' ? 10 : 6); // Approximate center
-        const ballX = targetHorizontalPosition; // Use landing position, not starting position
-        const distance = Math.abs(obstacleCenterX - ballX);
-        return distance < 8; // Collision threshold
-      });
-    };
-
-    // Phase 1: Ball flies to curb - speed based on power
-    // Weak throws (0-40): slower, lower arc
-    // Medium throws (40-70): moderate speed
-    // Strong throws (70-100): faster, higher arc
-    
-    const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
-    const arcHeight = throwPower < 40 ? 60 : throwPower < 70 ? 75 : 85; // max y position during arc
-    
-    setBallPhase('flying');
-    const startX = ballHorizontalPosition;
-    setBallPosition({ x: startX, y: 80 });
-    
-    // Animate ball arc with horizontal movement based on angle
-    const startTime = Date.now();
-    const animateBallFlight = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / flightDuration, 1);
-      
-      // Clean parabolic arc: starts at y=80, peaks at arcHeight, lands at y=5
-      const arcY = 80 + (5 - 80) * progress - Math.sin(progress * Math.PI) * (arcHeight - 42);
-      
-      // Smooth horizontal movement from start to target
-      const currentX = startX + (targetHorizontalPosition - startX) * progress;
-      
-      setBallPosition({ x: currentX, y: arcY });
-      setBallHorizontalPosition(currentX);
-      
-      if (progress < 1) {
-        ballFlightRafRef.current = requestAnimationFrame(animateBallFlight);
-      }
-    };
-    
-    ballFlightRafRef.current = requestAnimationFrame(animateBallFlight);
-    
-    setTimeout(() => {
-      // Check for collision mid-flight
-      if (checkObstacleCollision()) {
-        // Ball hits obstacle
-        setBallPhase('missed');
-        soundManager.playFail();
-        setConsecutiveHits(0);
-        toast.error("Hit an obstacle!", {
-          description: "Ball was blocked! Streak reset!",
-        });
-        
-        setTimeout(() => {
-          setBallPosition({ x: targetHorizontalPosition, y: 80 });
-          setBallPhase('ready');
-          setIsBallFlying(false);
-          setIsThrowing(false);
-          setPower(0);
-        }, 600);
-        return;
-      }
-      
-      setBallPosition({ x: targetHorizontalPosition, y: 5 }); // Move to curb at target horizontal position
-    }, flightDuration * 0.6);
-
-    setTimeout(() => {
-      // Phase 2: Ball hits curb (0.3s)
-      setBallPhase('hit');
-      soundManager.playImpact();
-      
-      // Check for coin collection at target position
-      const collectedCoin = curbCoins.find(
-        coin => !coin.collected && Math.abs(coin.position - targetHorizontalPosition) < 8
-      );
-      
-      // Check for bullseye target hit
-      const bullseyeHit = Math.abs(bullseyeTarget.position - targetHorizontalPosition) < 6;
-      
-      let coinBonus = 0;
-      if (collectedCoin) {
-        coinBonus = collectedCoin.value;
-        soundManager.playCoinCollect(); // Play coin collection sound
-        setCurbCoins(prev => 
-          prev.map(c => c.id === collectedCoin.id ? { ...c, collected: true } : c)
-        );
-        
-        // Remove collected coin after animation
-        setTimeout(() => {
-          setCurbCoins(prev => prev.filter(c => c.id !== collectedCoin.id));
-        }, 500);
-      }
-      
-      setTimeout(() => {
-        if (success) {
-          // Phase 3: Ball bounces back successfully (0.8s)
-          setBallPhase('bouncing');
-          setBallPosition({ x: targetHorizontalPosition, y: 80 }); // Bounce back to target position
-          soundManager.playSuccess();
-          
-          setTimeout(() => {
-            let pointsEarned = 10;
-            let bullseyeBonus = 0;
-            
-            // Award bullseye bonus
-            if (bullseyeHit) {
-              bullseyeBonus = 50;
-              pointsEarned += bullseyeBonus;
-              soundManager.playLevelUp(); // Play special sound for bullseye
-
-              // Track challenge progress for bullseye hits (dedicated counter)
-              bullseyeHitsRef.current++;
-              if (onChallengeProgress) {
-                onChallengeProgress('bullseye_5', bullseyeHitsRef.current);
-              }
-            }
-            
-            const newScore = score + pointsEarned;
-            setScore(newScore);
-
-            // Progress level every 100 points — increases difficulty within the game
-            const newLevel = Math.floor(newScore / 100) + 1;
-            if (newLevel > level) {
-              setLevel(newLevel);
-              toast.success(`Level ${newLevel}!`, { description: "The challenge intensifies!" });
-            }
-
-            // Track achievement progress for high score
-            if (onAchievementProgress) {
-              onAchievementProgress('first_1000', newScore);
-            }
-            
-            // Track challenge progress for score
-            if (onChallengeProgress) {
-              onChallengeProgress('score_500', newScore);
-            }
-            
-            // Trigger win effect when player first hits 100 points
-            if (newScore >= 100 && !gameWon) {
-              setGameWon(true);
-              soundManager.playMilestone();
-              toast.success("🏆 Win Effect Unlocked!", {
-                description: "You hit 100 points! Keep going for a high score!",
-              });
-            }
-
-            // Check for 100 point milestone celebration
-            const previousHundred = Math.floor(score / 100);
-            const currentHundred = Math.floor(newScore / 100);
-            const reachedMilestone = currentHundred > previousHundred;
-            
-            // Calculate and award coins (including coin bonus)
-            const earnedCoins = calculateCoinsEarned(throwPower, true) + coinBonus;
-            setCoins(prev => prev + earnedCoins);
-            setCoinsEarned(prev => prev + earnedCoins);
-            
-            // Show floating coins animation
-            setFloatingCoinAmount(earnedCoins);
-            setShowFloatingCoins(true);
-            spawnCoinParticles(earnedCoins);
-            
-            // Update streak
-            const newStreak = consecutiveHits + 1;
-            setConsecutiveHits(newStreak);
-            
-            // Track achievement and challenge progress for streak
-            if (onAchievementProgress) {
-              onAchievementProgress('streak_10', newStreak);
-            }
-            if (onChallengeProgress) {
-              onChallengeProgress('perfect_streak', newStreak);
-            }
-            
-            setShowConfetti(true);
-            
-            // Play milestone celebration if reached 100, 200, 300, etc.
-            if (reachedMilestone) {
-              soundManager.playMilestone();
-              toast.success(`🎉 ${currentHundred * 100} Points Milestone!`, {
-                description: `Amazing progress! Keep it up!`,
-              });
-              setTimeout(() => setShowConfetti(true), 100);
-            }
-            
-            const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
-            const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
-            toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
-              description: `Score: ${newScore} | Streak: ${consecutiveHits + 1}`,
-            });
-
-            setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
-            
-            // Reset
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
-          }, 800);
-          
-        } else {
-          // Phase 3: Ball misses and falls (0.6s)
-          setBallPhase('missed');
-          setBallPosition({ x: targetHorizontalPosition, y: -20 }); // Fall down at target position
-          soundManager.playFail();
-          
-          // Reset streak on miss
-          setConsecutiveHits(0);
-          
-          // Reset challenge progress for streak on miss
-          if (onChallengeProgress) {
-            onChallengeProgress('perfect_streak', 0);
-          }
-          
-          setTimeout(() => {
-            toast.error("Miss! Ball didn't bounce back", {
-              description: "Try timing your power better. Streak reset!",
-            });
-            
-            // Reset
-            setBallPosition({ x: targetHorizontalPosition, y: 80 });
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
-          }, 600);
-        }
-      }, 300);
-    }, flightDuration * 0.6 + 800);
     ballPhysicsRef.current = {
       x: ballHorizontalPosition,
-      y: 30,
+      y: PLAYER_START_Y,
       vx,
-      vy,
+      vy: -Math.abs(vy),
       spin: vx * 0.0015,
       hasBounced: false,
     };
+    setBallPosition({ x: ballHorizontalPosition, y: PLAYER_START_Y });
   };
 
   const restartGame = () => {
@@ -928,7 +724,7 @@ export const GameCanvas = ({
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 30 });
+    setBallPosition({ x: 50, y: PLAYER_START_Y });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setFinalTime(0);
@@ -1005,8 +801,8 @@ export const GameCanvas = ({
 
   return (
     <div 
-      className="fixed inset-0 m-0 p-0 block w-screen h-screen bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: 'cover' }}
+      className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", height: "100dvh" }}
     >
       {/* Starting Screen */}
       {!gameStarted && (
@@ -1095,7 +891,7 @@ export const GameCanvas = ({
         ref={gameAreaRef}
         role="main"
         aria-label="Curb Ball game — aim with the left and right buttons, hold Charge to throw"
-        className="relative h-full w-full"
+        className="relative h-full w-full touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -1186,276 +982,96 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Street — absolute at bottom so backdrop fills screen above */}
-        <div className={`absolute bottom-0 left-0 right-0 transition-all duration-1000 ${
-          gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
-        }`} style={{
-          background: gameWon ? undefined : "hsl(var(--game-street))",
-          height: `${Math.max(220, viewport.height * 0.38)}px`,
-        }}>
-            {/* Curb */}
-            <div
-              className={`absolute top-0 left-0 right-0 h-4 transition-all duration-1000 ${
-                ballPhase === 'hit' ? 'animate-pulse' : ''
-              } ${
-                gameWon 
-                  ? 'bg-gradient-to-b from-yellow-400 to-yellow-600' 
-                  : 'bg-gradient-to-b from-gray-400 to-gray-600'
-              }`}
-              style={{ 
-                boxShadow: ballPhase === 'hit' 
-                  ? "0 4px 10px rgba(0,0,0,0.5), 0 0 30px rgba(255, 165, 0, 0.6)"
-                  : "0 4px 10px rgba(0,0,0,0.5)" 
-              }}
-            >
-              {/* Impact effect at ball position */}
-              {ballPhase === 'hit' && (
-                <div 
-                  className="absolute top-0 -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${ballPosition.x}%` }}
-                >
-                  <div className="w-16 h-16 rounded-full bg-orange-500/40 animate-ping" />
-                </div>
-              )}
-              
-              {/* Hovering coins over curb */}
-              {curbCoins.map((coin) => (
-                <HoveringCoin
-                  key={coin.id}
-                  position={coin.position}
-                  value={coin.value}
-                  collected={coin.collected}
-                />
-              ))}
-              
-              {/* Bullseye Target */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 transition-all duration-75"
-                style={{ left: `${bullseyeTarget.position}%` }}
-              >
-                <div className="relative -translate-x-1/2">
-                  {/* Outer ring - red */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
-                  {/* Middle ring - white */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
-                  {/* Inner ring - red */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
-                  {/* Center dot - white */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
-                  {/* Glow effect */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-red-400/30 blur-md animate-pulse" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Street lines */}
-            <div className={`absolute top-1/2 left-0 right-0 h-1 opacity-80 transition-all duration-1000 ${
-              gameWon ? 'bg-purple-400' : 'bg-yellow-400'
-            }`} />
-            
-            {/* Position markers on opposite side of street */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-around px-8">
-              {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((pos) => (
-                <div
-                  key={pos}
-                  className="relative flex flex-col items-center"
-                  style={{ left: `${pos - 50}%` }}
-                >
-                  <div className={`w-1 h-3 rounded-full transition-all ${
-                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
-                      ? 'bg-green-400 h-6 shadow-[0_0_10px_rgba(74,222,128,0.8)]'
-                      : 'bg-white/40'
-                  }`} />
-                  <div className={`text-[8px] font-bold mt-0.5 transition-all ${
-                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
-                      ? 'text-green-400 scale-110'
-                      : 'text-white/50'
-                  }`}>
-                    {pos}
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Scene layers: full background -> road -> gameplay objects */}
+        <div
+          className={`absolute bottom-0 left-0 right-0 transition-all duration-700 ${
+            gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : ""
+          }`}
+          style={{
+            top: `${ROAD_TOP_PERCENT}%`,
+            background: gameWon ? undefined : "hsl(var(--game-street))",
+          }}
+        >
+          <div className={`absolute top-0 left-0 right-0 h-4 ${gameWon ? "bg-gradient-to-b from-yellow-400 to-yellow-600" : "bg-gradient-to-b from-gray-400 to-gray-600"}`} />
+          <div className={`absolute top-[42%] left-0 right-0 h-1 opacity-80 ${gameWon ? "bg-purple-400" : "bg-yellow-400"}`} />
 
-            {/* Obstacles */}
-            {obstacles.map((obs) => (
-              <div
-                key={obs.id}
-                className="absolute transition-all"
-                style={{ left: `${obs.position}%`, bottom: '12%' }}
-              >
-                <div
-                  className={`${
-                    obs.type === "car"
-                      ? "w-20 h-12 bg-gradient-to-r from-red-600 to-red-800"
-                      : "w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-800"
-                  } rounded-lg shadow-lg`}
-                />
-              </div>
-            ))}
+          {obstacles.map((obs) => (
+            <div key={obs.id} className="absolute transition-all" style={{ left: `${obs.position}%`, bottom: "14%" }}>
+              <div className={`${obs.type === "car" ? "w-16 h-10 bg-gradient-to-r from-red-600 to-red-800" : "w-10 h-7 bg-gradient-to-r from-blue-600 to-blue-800"} rounded-lg shadow-lg`} />
+            </div>
+          ))}
+        </div>
 
-            {/* Aiming guide — easy/medium only, before throw */}
-            {ballPhase === 'ready' && gameStarted && difficulty !== 'hard' && (
-              <svg
-                className="absolute inset-0 w-full h-full pointer-events-none opacity-70 animate-pulse"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                    <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
-                  </marker>
-                </defs>
-                <line
-                  x1={ballHorizontalPosition}
-                  y1={100 - ballPosition.y}
-                  x2={bullseyeTarget.position}
-                  y2="10"
-                  stroke="#facc15"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 3"
-                  markerEnd="url(#arrowhead)"
-                />
-              </svg>
+        <div className="absolute inset-0 pointer-events-none">
+          {curbCoins.map((coin) => (
+            <HoveringCoin key={coin.id} position={coin.position} value={coin.value} collected={coin.collected} />
+          ))}
+
+          <div className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.position}%`, top: `${CURB_Y_PERCENT}%` }}>
+            <div className="relative">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
+            </div>
+          </div>
+
+          {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
+            <svg className="absolute inset-0 w-full h-full opacity-75" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                  <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
+                </marker>
+              </defs>
+              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.position} y2={TARGET_Y} stroke="#facc15" strokeWidth="1.5" strokeDasharray="4 3" markerEnd="url(#arrowhead)" />
+            </svg>
+          )}
+
+          <div
+            className={`absolute ${ballPhase === "missed" ? "opacity-60" : ""}`}
+            style={{
+              width: `${Math.max(42, 72 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
+              height: `${Math.max(42, 72 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
+              left: `${ballPosition.x}%`,
+              top: `${ballPosition.y}%`,
+              transform: "translate(-50%, -50%)",
+              filter: ballPhase === "hit" ? "drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))" : "drop-shadow(0 10px 15px rgba(0,0,0,0.5))",
+            }}
+          >
+            {getBallImageUrl(currentBall) ? (
+              <img src={getBallImageUrl(currentBall)!} alt="Ball" className="w-full h-full object-contain" />
+            ) : (
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl" />
             )}
-
-            {/* Ball */}
-            <div
-              className={`absolute ${
-                ballPhase === 'flying' ? 'transition-all [transition-duration:800ms] ease-out' :
-                ballPhase === 'hit' ? 'scale-90' :
-                ballPhase === 'bouncing' ? 'transition-all [transition-duration:800ms] ease-in-out' :
-                ballPhase === 'missed' ? 'transition-all [transition-duration:600ms] ease-in opacity-50' :
-                'transition-all duration-200'
-              }`}
-              style={{
-                width: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
-                height: `${Math.max(44, 80 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
-                left: `${ballPosition.x}%`,
-                bottom: `${ballPosition.y}%`,
-                filter: ballPhase === 'hit' ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
-                transform: `translateX(-50%) ${
-                  ballPhase === 'flying' ? 'scale(0.8) rotateZ(360deg)' :
-                  ballPhase === 'hit' ? 'scale(1.3)' :
-                  ballPhase === 'bouncing' ? 'scale(1.1) rotateZ(-360deg)' :
-                  ballPhase === 'missed' ? 'scale(0.6) rotateZ(180deg)' :
-                  'scale(1)'
-                }`,
-              }}
-            >
-              {getBallImageUrl(currentBall) ? (
-                <img 
-                  src={getBallImageUrl(currentBall)!} 
-                  alt="Ball" 
-                  className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
-                  <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
-                    ballPhase === 'hit' ? 'animate-pulse' : ''
-                  }`} />
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
 
-        {/* Controls - Mobile Responsive */}
-        <div className="absolute left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4" style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          
-          {/* Movement controls */}
-          {ballPhase === 'ready' && (
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveLeft}
-                disabled={isThrowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                ← LEFT
-              </Button>
-              
-              <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
-                {Math.round(ballHorizontalPosition)}%
-              </div>
-              
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveRight}
-                disabled={isThrowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                RIGHT →
-              </Button>
+        {/* Controls - single bottom overlay for mobile */}
+        <div className="absolute left-2 right-2 z-20 flex flex-col items-center gap-2 rounded-xl bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ bottom: "max(0.6rem, env(safe-area-inset-bottom))" }}>
+          {ballPhase === "ready" && (
+            <div className="flex items-center gap-2 w-full justify-center">
+              <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">←</Button>
+              <div className="text-xs text-white/80 font-semibold min-w-[52px] text-center">{Math.round(ballHorizontalPosition)}%</div>
+              <Button variant="outline" size="sm" onClick={moveRight} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">→</Button>
             </div>
           )}
-          
-          <Button
-            size="lg"
-            onMouseDown={startCharging}
-            onMouseUp={releaseThrow}
-            onMouseLeave={() => {
-              if (isCharging) releaseThrow();
-            }}
-            onTouchStart={startCharging}
-            onTouchEnd={releaseThrow}
-            disabled={isThrowing || isBallFlying}
-            className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
-          >
-            {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
-          </Button>
-        {/* Controls overlay — sits on top of the street at the bottom */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 pb-2 pt-1 px-2 flex flex-col items-center gap-1 bg-black/25 backdrop-blur-sm">
-          {/* Throw button + utility buttons row */}
           <div className="flex items-center gap-2 w-full justify-center">
-            <SoundToggle className="flex-none z-20" />
-
+            <SoundToggle className="flex-none" />
             <Button
               size="lg"
               onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
               onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
               onPointerLeave={() => { if (isCharging) releaseThrow(); }}
               disabled={isThrowing || isBallFlying}
-              className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none flex-1 sm:flex-none"
+              className="text-sm font-bold px-6 py-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none flex-1 max-w-[320px]"
             >
               {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
             </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={restartGame}
-              className="flex-none border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
-            >
-              RESTART
-            </Button>
-          </div>
-
-          {/* Charge + utility row */}
-          <div className="flex items-center gap-2 w-full justify-center">
-            <SoundToggle className="flex-none" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={restartGame}
-              aria-label="Restart game"
-              className="flex-none border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground text-xs min-w-[44px] min-h-[44px] px-3"
-            >
+            <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="min-h-[44px] px-3">
               Restart
             </Button>
           </div>
-
-          {ballPhase === 'ready' && (
-            <div className="text-xs text-foreground/60 font-semibold flex items-center gap-3">
-              <span>Streak: {consecutiveHits}</span>
-              <span>• {Math.round(ballHorizontalPosition)}%</span>
-              <span>•</span>
-              <span>{Math.round(ballHorizontalPosition)}%</span>
-            </div>
-          )}
         </div>
       </div>
 
