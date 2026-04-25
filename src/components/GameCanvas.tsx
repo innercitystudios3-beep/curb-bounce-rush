@@ -810,6 +810,55 @@ export const GameCanvas = ({
           b.vy = 0;
           b.y = liveLayout.playerStartY;
           setBallPosition({ x: b.x, y: b.y });
+          resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        checkCoinCollisions(b);
+
+        const outOfBounds =
+          b.x < -ballRadiusPx ||
+          b.x > liveLayout.screenW + ballRadiusPx ||
+          b.y < liveLayout.farCurbY - ballRadiusPx * 3 ||
+          b.y > liveLayout.roadBottomY + ballRadiusPx;
+        if (outOfBounds) {
+          resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
+          setBallPosition({ x: b.x, y: b.y });
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        const dxPx = b.x - bullseyeRef.current.x;
+        const dyPx = b.y - bullseyeRef.current.y;
+        const distToTarget = Math.hypot(dxPx, dyPx);
+
+        if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target" && !attemptResolvedRef.current) {
+          const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
+          const velPx = {
+            x: b.vx,
+            y: b.vy,
+          };
+          const dot = velPx.x * norm.x + velPx.y * norm.y;
+          const reflectX = velPx.x - 2 * dot * norm.x;
+          const reflectY = velPx.y - 2 * dot * norm.y;
+          b.vx = reflectX;
+          b.vy = reflectY;
+
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => {
+            const obstacleX = (obs.position / 100) * liveLayout.screenW;
+            return Math.abs(obstacleX - b.x) < ballRadiusPx + 34 && b.y >= liveLayout.roadTopY && b.y <= liveLayout.roadBottomY;
+          }
+        );
+
+        if (obstacleHit) {
+          b.hitType = "none";
+          b.hasBounced = false;
+          b.vx = 0;
+          b.vy = 0;
+          b.y = liveLayout.playerStartY;
+          setBallPosition({ x: b.x, y: b.y });
           setBallHorizontalPosition((b.x / liveLayout.screenW) * 100);
           resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
           animationFrameRef.current = requestAnimationFrame(loop);
@@ -881,6 +930,28 @@ export const GameCanvas = ({
           if (b.hitType === "none") b.hitType = "curb";
           setBallPhase("bouncing");
           soundManager.playImpact();
+        }
+
+        if (b.y >= liveLayout.playerStartY && b.hasBounced) {
+          b.y = liveLayout.playerStartY;
+          b.vx *= 0.8;
+          b.vy *= -0.2;
+        }
+
+        const speedPx = Math.hypot(b.vx, b.vy);
+        const ballHasSettled = speedPx < 12;
+        const throwElapsed = throwStartTimeRef.current ? timestamp - throwStartTimeRef.current : 0;
+        const throwTimedOut = throwElapsed > 4200;
+        if (ballHasSettled || throwTimedOut) {
+          if (b.hitType === "target") {
+            resolveAttempt({ hitType: "target", success: true, delayMs: 750 });
+          } else {
+            resolveAttempt({ hitType: b.hitType === "curb" ? "curb" : "miss", attemptsDelta: -1, success: false, delayMs: 700 });
+          }
+        }
+
+        setBallPosition({ x: b.x, y: b.y });
+
         }
 
         if (b.y >= liveLayout.playerStartY && b.hasBounced) {
@@ -1098,6 +1169,16 @@ export const GameCanvas = ({
     throwStartTimeRef.current = performance.now();
     const vxPx = Math.cos(aimAngle) * launchSpeedPx;
     const vyPx = Math.sin(aimAngle) * launchSpeedPx;
+    ballPhysicsRef.current = {
+      x: layout.playerStartX,
+      y: layout.playerStartY,
+      vx: vxPx,
+      vy: vyPx,
+      spin: vxPx * 0.0015,
+      hasBounced: false,
+      hitType: "none",
+    };
+    setBallPosition({ x: layout.playerStartX, y: layout.playerStartY });
     ballPhysicsRef.current = {
       x: layout.playerStartX,
       y: layout.playerStartY,
