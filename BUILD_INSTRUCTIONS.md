@@ -66,6 +66,8 @@ The following environment variables are configured:
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
 - `VITE_FB_INSTANT=false` - Facebook Instant Games disabled
+- `VITE_FB_REWARDED_PLACEMENT_ID` - Facebook rewarded ad placement ID
+- `VITE_FB_INTERSTITIAL_PLACEMENT_ID` - Facebook interstitial ad placement ID
 
 ## Data Storage
 

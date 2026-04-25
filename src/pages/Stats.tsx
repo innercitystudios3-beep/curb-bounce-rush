@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,17 +83,21 @@ export default function Stats() {
     return colors[difficulty];
   };
 
-  const achievements = [
-    { id: 'games_10', name: 'Getting Started', description: 'Play 10 games', icon: Target, threshold: 10, current: getTotalGamesPlayed(), type: 'games' },
-    { id: 'games_25', name: 'Dedicated Player', description: 'Play 25 games', icon: Target, threshold: 25, current: getTotalGamesPlayed(), type: 'games' },
-    { id: 'games_50', name: 'Enthusiast', description: 'Play 50 games', icon: Target, threshold: 50, current: getTotalGamesPlayed(), type: 'games' },
-    { id: 'games_100', name: 'Century Club', description: 'Play 100 games', icon: Trophy, threshold: 100, current: getTotalGamesPlayed(), type: 'games' },
-    { id: 'coins_10000', name: 'Coin Collector', description: 'Earn 10,000 coins', icon: Coins, threshold: 10000, current: getTotalCoins(), type: 'coins' },
-    { id: 'score_500', name: 'High Scorer', description: 'Score 500 points', icon: Award, threshold: 500, current: getOverallHighScore(), type: 'score' },
-    { id: 'score_1000', name: 'Master Player', description: 'Score 1,000 points', icon: Trophy, threshold: 1000, current: getOverallHighScore(), type: 'score' },
-  ];
+  const totalGamesPlayed = getTotalGamesPlayed();
+  const totalCoins = getTotalCoins();
+  const overallHighScore = getOverallHighScore();
 
-  const isAchievementUnlocked = (achievement: typeof achievements[0]) => {
+  const achievements = useMemo(() => [
+    { id: 'games_10', name: 'Getting Started', description: 'Play 10 games', icon: Target, threshold: 10, current: totalGamesPlayed, type: 'games' },
+    { id: 'games_25', name: 'Dedicated Player', description: 'Play 25 games', icon: Target, threshold: 25, current: totalGamesPlayed, type: 'games' },
+    { id: 'games_50', name: 'Enthusiast', description: 'Play 50 games', icon: Target, threshold: 50, current: totalGamesPlayed, type: 'games' },
+    { id: 'games_100', name: 'Century Club', description: 'Play 100 games', icon: Trophy, threshold: 100, current: totalGamesPlayed, type: 'games' },
+    { id: 'coins_10000', name: 'Coin Collector', description: 'Earn 10,000 coins', icon: Coins, threshold: 10000, current: totalCoins, type: 'coins' },
+    { id: 'score_500', name: 'High Scorer', description: 'Score 500 points', icon: Award, threshold: 500, current: overallHighScore, type: 'score' },
+    { id: 'score_1000', name: 'Master Player', description: 'Score 1,000 points', icon: Trophy, threshold: 1000, current: overallHighScore, type: 'score' },
+  ], [totalGamesPlayed, totalCoins, overallHighScore]);
+
+  const isAchievementUnlocked = (achievement: { current: number; threshold: number }) => {
     return achievement.current >= achievement.threshold;
   };
 
@@ -104,28 +108,26 @@ export default function Stats() {
     }
   };
 
-  const saveUnlockedAchievement = (achievementId: string) => {
-    const newUnlocked = new Set(unlockedAchievements);
-    newUnlocked.add(achievementId);
-    setUnlockedAchievements(newUnlocked);
-    localStorage.setItem('unlockedAchievements', JSON.stringify([...newUnlocked]));
-  };
-
   const checkNewAchievements = useCallback(() => {
     achievements.forEach((achievement) => {
-      const isUnlocked = isAchievementUnlocked(achievement);
+      const isUnlocked = achievement.current >= achievement.threshold;
       const wasUnlocked = unlockedAchievements.has(achievement.id);
-      
+
       if (isUnlocked && !wasUnlocked) {
-        // New achievement unlocked!
-        saveUnlockedAchievement(achievement.id);
+        // New achievement unlocked — update state via functional form to avoid stale closure
+        setUnlockedAchievements(prev => {
+          const newUnlocked = new Set(prev);
+          newUnlocked.add(achievement.id);
+          localStorage.setItem('unlockedAchievements', JSON.stringify([...newUnlocked]));
+          return newUnlocked;
+        });
         soundManager.playAchievement();
         setShowConfetti(true);
-        
+
         toast.success(`🏆 Achievement Unlocked!`, {
           description: achievement.name,
         });
-        
+
         setTimeout(() => setShowConfetti(false), 4000);
       }
     });

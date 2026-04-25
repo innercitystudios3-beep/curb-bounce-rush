@@ -19,7 +19,8 @@ class SoundManager {
 
   private getContext() {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      this.audioContext = new AudioCtx();
     }
     return this.audioContext;
   }

@@ -1,73 +1,53 @@
-# Welcome to your Lovable project
+# Curbball
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/91943c87-db39-4436-8299-5eb0927490e9
+This is a Vite + React + TypeScript browser game.
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/91943c87-db39-4436-8299-5eb0927490e9) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Local development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Quality checks
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run lint
+npm run typecheck
+npm run build
+```
 
-**Use GitHub Codespaces**
+## Deploy to Vercel
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+This repository is now configured for Vercel static deployment using `vercel.json`.
 
-## What technologies are used for this project?
+### One-time setup
 
-This project is built with:
+1. Push this repository to GitHub/GitLab/Bitbucket.
+2. In Vercel, click **Add New... -> Project** and import the repo.
+3. Use these project settings (they should auto-detect):
+   - **Framework preset**: Vite
+   - **Install command**: `npm ci`
+   - **Build command**: `npm run build`
+   - **Output directory**: `dist`
+4. Add required environment variables from your `.env` file in **Project Settings -> Environment Variables**.
+5. Deploy.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Why this works
 
-## How can I deploy this project?
+- `vercel.json` routes all paths to `index.html` so React Router works on hard refresh and deep links.
+- Vercel install uses `npm ci --no-audit --no-fund` for more deterministic CI installs.
+- Node engine is pinned to `20.x` for Vercel build consistency.
+- Security headers are added for baseline production hardening, including a CSP that allows Facebook Instant Games embedding.
 
-Simply open [Lovable](https://lovable.dev/projects/91943c87-db39-4436-8299-5eb0927490e9) and click on Share -> Publish.
+## "AAA-ready" improvement checklist
 
-## Can I connect a custom domain to my Lovable project?
+No single commit can make any game "AAA award-winning," but this repo now includes a deployable baseline and release checks. Next practical steps:
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Add telemetry (FPS, memory, scene load timings) and error monitoring.
+- Add automated end-to-end gameplay tests.
+- Add performance budgets to CI (bundle size + runtime FPS checks).
+- Perform UX/audio balancing and playtest loops with real users.
+- Add accessibility passes (contrast, keyboard flow, reduced motion).
