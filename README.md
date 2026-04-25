@@ -38,6 +38,8 @@ This repository is now configured for Vercel static deployment using `vercel.jso
 ### Why this works
 
 - `vercel.json` routes all paths to `index.html` so React Router works on hard refresh and deep links.
+- Vercel install uses `npm ci --no-audit --no-fund` for more deterministic CI installs.
+- Node engine is pinned to `20.x` for Vercel build consistency.
 - Security headers are added for baseline production hardening, including a CSP that allows Facebook Instant Games embedding.
 
 ## "AAA-ready" improvement checklist
