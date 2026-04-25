@@ -35,6 +35,9 @@ const MOBILE_LAYOUT = {
   HUD_BOTTOM_PERCENT: 16,
   FAR_CURB_PERCENT: 60,
   ROAD_TOP_PERCENT: 61,
+  HUD_BOTTOM_PERCENT: 18,
+  FAR_CURB_PERCENT: 60,
+  ROAD_TOP_PERCENT: 62,
   ROAD_BOTTOM_PERCENT: 88,
   CONTROLS_TOP_PERCENT: 88,
   PLAYER_START_X: 72,
@@ -46,6 +49,7 @@ const PLAYER_START_Y_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - ROAD_HEIGHT_P
 const TARGET_Y_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.18;
 
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "RESOLVING" | "SCORED" | "MISSED" | "RESET";
+type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "SCORED" | "MISSED" | "RESET";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -563,6 +567,8 @@ export const GameCanvas = ({
         }, 450);
       }
     };
+    let resetTimeout: number | null = null;
+    let rafId: number | null = null;
 
     const loop = (timestamp: number) => {
       if (cancelled) return;
@@ -592,12 +598,51 @@ export const GameCanvas = ({
       });
 
       if (playStateRef.current === "BALL_IN_PLAY" && !attemptResolvedRef.current) {
+      if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
         b.x += b.vx * delta;
         b.y += b.vy * delta;
         const frictionStep = Math.pow(friction, delta * 60);
         b.vx *= frictionStep;
         b.vy *= frictionStep;
+
+        if (b.x <= 0 || b.x >= 100) {
+          b.x = Math.max(0, Math.min(100, b.x));
+          b.vx *= -edgeBounce;
+        }
+
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+        );
+
+        if (obstacleHit) {
+          b.hitType = "none";
+          b.hasBounced = false;
+          b.vx = 0;
+          b.vy = 0;
+          b.y = PLAYER_START_Y;
+          setBallPosition({ x: b.x, y: b.y });
+          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+          resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        checkCoinCollisions(b);
+
+        const outOfBounds = b.y < ROAD_TOP_PERCENT - 10 || b.y > ROAD_BOTTOM_PERCENT + 20 || b.x < -5 || b.x > 105;
+        if (outOfBounds) {
+          resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
+          setBallPosition({ x: b.x, y: b.y });
+          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
+        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        const distToTarget = Math.hypot(dxPx, dyPx);
+
 
         if (b.x <= 0 || b.x >= 100) {
           b.x = Math.max(0, Math.min(100, b.x));
@@ -683,6 +728,108 @@ export const GameCanvas = ({
           soundManager.playImpact();
         }
 
+        }
+
+        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
+          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
+          b.vy = Math.abs(b.vy) * farCurbBounce;
+          b.vx *= 0.95;
+          b.hasBounced = true;
+          if (b.hitType === "none") b.hitType = "curb";
+          setBallPhase("bouncing");
+          soundManager.playImpact();
+        }
+
+        }
+
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+        );
+
+        if (obstacleHit) {
+          b.hitType = "none";
+          b.hasBounced = false;
+          b.vx = 0;
+          b.vy = 0;
+          b.y = PLAYER_START_Y;
+          setPlayState("MISSED");
+          playStateRef.current = "MISSED";
+          setBallPhase("missed");
+          setConsecutiveHits(0);
+          onChallengeProgress?.("perfect_streak", 0);
+          setAttempts((prev) => Math.max(prev - 1, 0));
+          soundManager.playFail();
+          setBallPosition({ x: b.x, y: b.y });
+          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+          rafId = requestAnimationFrame(loop);
+          return;
+        }
+
+        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
+        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        const distToTarget = Math.hypot(dxPx, dyPx);
+
+        if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target") {
+          const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
+          const velPx = {
+            x: (b.vx * viewport.width) / 100,
+            y: (b.vy * viewport.height) / 100,
+          };
+          const dot = velPx.x * norm.x + velPx.y * norm.y;
+          const reflectX = velPx.x - 2 * dot * norm.x;
+          const reflectY = velPx.y - 2 * dot * norm.y;
+          b.vx = (reflectX / viewport.width) * 100;
+          b.vy = (reflectY / viewport.height) * 100;
+          b.hasBounced = true;
+          b.hitType = "target";
+          setBallPhase("hit");
+          soundManager.playImpact();
+
+          const pointsEarned = Math.abs(bullseyeRef.current.position - b.x) < 6 ? 60 : 10;
+          let coinBonus = 0;
+          const collectedCoin = curbCoinsRef.current.find(
+            (coin) => !coin.collected && Math.abs(coin.position - b.x) < 8
+          );
+          if (collectedCoin) {
+            coinBonus = collectedCoin.value;
+            soundManager.playCoinCollect();
+            setCurbCoins((prev) =>
+              prev.map((coin) => (coin.id === collectedCoin.id ? { ...coin, collected: true } : coin))
+            );
+            window.setTimeout(() => {
+              setCurbCoins((prev) => prev.filter((coin) => coin.id !== collectedCoin.id));
+            }, 450);
+          }
+          const coinsGained = calculateCoinsEarned(powerRef.current, true) + coinBonus;
+          setScore((prev) => {
+            const newScore = prev + pointsEarned;
+            onAchievementProgress?.("first_1000", newScore);
+            onChallengeProgress?.("score_500", newScore);
+            return newScore;
+          });
+          setConsecutiveHits((prev) => {
+            const newStreak = prev + 1;
+            onAchievementProgress?.("streak_10", newStreak);
+            onChallengeProgress?.("perfect_streak", newStreak);
+            return newStreak;
+          });
+          setCoins((prev) => prev + coinsGained);
+          setCoinsEarned((prev) => prev + coinsGained);
+          bullseyeHitsRef.current += 1;
+          onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+          setShowConfetti(true);
+        }
+
+        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
+          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
+          b.vy = Math.abs(b.vy) * farCurbBounce;
+          b.vx *= 0.95;
+          b.hasBounced = true;
+          if (b.hitType === "none") b.hitType = "curb";
+          setBallPhase("bouncing");
+          soundManager.playImpact();
+        }
+
         if (b.y >= PLAYER_START_Y && b.hasBounced) {
           b.y = PLAYER_START_Y;
           b.vx *= 0.8;
@@ -695,6 +842,17 @@ export const GameCanvas = ({
             resolveAttempt({ hitType: "target", success: true, delayMs: 750 });
           } else {
             resolveAttempt({ hitType: b.hitType === "curb" ? "curb" : "miss", attemptsDelta: -1, success: false, delayMs: 700 });
+          setPlayState(b.hitType === "target" ? "SCORED" : "MISSED");
+          playStateRef.current = b.hitType === "target" ? "SCORED" : "MISSED";
+          if (b.hitType !== "target") {
+            setBallPhase("missed");
+            setConsecutiveHits(0);
+            onChallengeProgress?.("perfect_streak", 0);
+            setAttempts((prev) => Math.max(prev - 1, 0));
+            soundManager.playFail();
+          } else {
+            setBallPhase("bouncing");
+            soundManager.playSuccess();
           }
         }
 
@@ -717,6 +875,43 @@ export const GameCanvas = ({
         resetTimeoutRef.current = null;
       }
       lastFrameTimeRef.current = null;
+    };
+
+    animationFrameRef.current = requestAnimationFrame(loop);
+    return () => {
+      cancelled = true;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
+      lastFrameTimeRef.current = null;
+      if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
+        setPlayState("RESET");
+        resetTimeout = window.setTimeout(() => {
+          ballPhysicsRef.current = { x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y, vx: 0, vy: 0, spin: 0, hasBounced: false, hitType: "none" };
+          setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
+          setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
+          setIsBallFlying(false);
+          setIsThrowing(false);
+          setPower(0);
+          setBallPhase("ready");
+          setPlayState("IDLE");
+          playStateRef.current = "IDLE";
+          setShowConfetti(false);
+        }, 950);
+      }
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (resetTimeout) clearTimeout(resetTimeout);
       lastFrameRef.current = 0;
     };
   }, [PLAYER_START_Y, ROAD_BOTTOM_PERCENT, ROAD_TOP_PERCENT, TARGET_Y, currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, viewport.height, viewport.width]);
@@ -847,6 +1042,7 @@ export const GameCanvas = ({
     setIsBallFlying(true);
     setBallPhase("flying");
     beginThrow();
+    setPlayState("BALL_IN_PLAY");
     setShowConfetti(false);
     soundManager.playThrow();
     const vxPercent = (Math.cos(aimAngle) * launchSpeedPx / viewport.width) * 100;
@@ -967,6 +1163,7 @@ export const GameCanvas = ({
     <div 
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center 18%", height: "100dvh" }}
+      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center top", height: "100dvh" }}
     >
       {/* Starting Screen */}
       {!gameStarted && (
@@ -1062,6 +1259,7 @@ export const GameCanvas = ({
       >
         {/* HUD - Mobile Responsive */}
         <div className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5" style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: `${MOBILE_LAYOUT.HUD_BOTTOM_PERCENT}dvh` }}>
+        <div className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5" style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: "18dvh" }}>
           <div className="flex items-center gap-1.5 sm:gap-3">
             {showBackConfirm ? (
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
