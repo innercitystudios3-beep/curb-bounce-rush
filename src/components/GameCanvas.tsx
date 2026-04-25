@@ -643,6 +643,44 @@ export const GameCanvas = ({
         const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
         const distToTarget = Math.hypot(dxPx, dyPx);
 
+
+        if (b.x <= 0 || b.x >= 100) {
+          b.x = Math.max(0, Math.min(100, b.x));
+          b.vx *= -edgeBounce;
+        }
+
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+        );
+
+        if (obstacleHit) {
+          b.hitType = "none";
+          b.hasBounced = false;
+          b.vx = 0;
+          b.vy = 0;
+          b.y = PLAYER_START_Y;
+          setBallPosition({ x: b.x, y: b.y });
+          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+          resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        checkCoinCollisions(b);
+
+        const outOfBounds = b.y < ROAD_TOP_PERCENT - 10 || b.y > ROAD_BOTTOM_PERCENT + 20 || b.x < -5 || b.x > 105;
+        if (outOfBounds) {
+          resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
+          setBallPosition({ x: b.x, y: b.y });
+          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
+        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        const distToTarget = Math.hypot(dxPx, dyPx);
+
         if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target" && !attemptResolvedRef.current) {
           const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
           const velPx = {
@@ -678,6 +716,18 @@ export const GameCanvas = ({
           bullseyeHitsRef.current += 1;
           onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
           setShowConfetti(true);
+        }
+
+        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
+          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
+          b.vy = Math.abs(b.vy) * farCurbBounce;
+          b.vx *= 0.95;
+          b.hasBounced = true;
+          if (b.hitType === "none") b.hitType = "curb";
+          setBallPhase("bouncing");
+          soundManager.playImpact();
+        }
+
         }
 
         if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
@@ -811,6 +861,20 @@ export const GameCanvas = ({
       }
 
       animationFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(loop);
+    return () => {
+      cancelled = true;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
+      lastFrameTimeRef.current = null;
     };
 
     animationFrameRef.current = requestAnimationFrame(loop);
