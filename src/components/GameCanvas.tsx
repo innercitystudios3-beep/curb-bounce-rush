@@ -31,6 +31,20 @@ interface BullseyeTarget {
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
+const MOBILE_LAYOUT = {
+  HUD_BOTTOM_PERCENT: 18,
+  FAR_CURB_PERCENT: 60,
+  ROAD_TOP_PERCENT: 62,
+  ROAD_BOTTOM_PERCENT: 88,
+  CONTROLS_TOP_PERCENT: 88,
+  PLAYER_START_X: 72,
+  TARGET_START_X: 25,
+} as const;
+
+const ROAD_HEIGHT_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - MOBILE_LAYOUT.ROAD_TOP_PERCENT;
+const PLAYER_START_Y_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - ROAD_HEIGHT_PERCENT * 0.22;
+const TARGET_Y_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.18;
+
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "SCORED" | "MISSED" | "RESET";
 
 export type Difficulty = "easy" | "medium" | "hard";
@@ -71,6 +85,8 @@ export const GameCanvas = ({
   const isChargingRef = useRef(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
+  const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: MOBILE_LAYOUT.TARGET_START_X, direction: 1 });
+  const [ballPosition, setBallPosition] = useState({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y_PERCENT });
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80.5 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
@@ -104,6 +120,11 @@ export const GameCanvas = ({
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const ROAD_TOP_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT;
+  const ROAD_BOTTOM_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT;
+  const CURB_Y_PERCENT = MOBILE_LAYOUT.FAR_CURB_PERCENT;
+  const PLAYER_START_Y = PLAYER_START_Y_PERCENT;
+  const TARGET_Y = TARGET_Y_PERCENT;
   const ROAD_TOP_PERCENT = 70;
   const ROAD_HEIGHT_PERCENT = 30;
   const CURB_Y_PERCENT = ROAD_TOP_PERCENT;
@@ -113,15 +134,18 @@ export const GameCanvas = ({
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   const lastFrameRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
-  const bullseyeRef = useRef<BullseyeTarget>({ position: 50, direction: 1 });
+  const bullseyeRef = useRef<BullseyeTarget>({ position: MOBILE_LAYOUT.TARGET_START_X, direction: 1 });
   const playStateRef = useRef<PlayState>("IDLE");
   const ballPhysicsRef = useRef({
+    x: MOBILE_LAYOUT.PLAYER_START_X,
+    y: PLAYER_START_Y_PERCENT,
     x: 50,
     y: 80.5,
     vx: 0,
     vy: 0,
     spin: 0,
     hasBounced: false,
+    hitType: "none" as "none" | "target" | "curb",
   });
 
   useEffect(() => {
@@ -429,6 +453,12 @@ export const GameCanvas = ({
   useEffect(() => {
     if (!gameStarted || gameEnded || isPaused) return;
 
+    const friction = 0.992;
+    const farCurbBounce = 0.85;
+    const edgeBounce = 0.8;
+    const ballRadiusPx = viewport.width * 0.035;
+    const targetRadiusPx = viewport.width * 0.055;
+    const ballRadiusYPercent = (ballRadiusPx / viewport.height) * 100;
     const gravity = 160;
     const restitution = 0.62;
     let resetTimeout: number | null = null;
@@ -447,11 +477,11 @@ export const GameCanvas = ({
       setBullseyeTarget((prev) => {
         let newPosition = prev.position + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * 20;
         let newDirection = prev.direction;
-        if (newPosition >= 85) {
-          newPosition = 85;
+        if (newPosition >= 42) {
+          newPosition = 42;
           newDirection = -1;
-        } else if (newPosition <= 15) {
-          newPosition = 15;
+        } else if (newPosition <= 18) {
+          newPosition = 18;
           newDirection = 1;
         }
         return { position: newPosition, direction: newDirection };
@@ -462,7 +492,102 @@ export const GameCanvas = ({
         b.vy += gravity * delta;
         b.x += b.vx * delta;
         b.y += b.vy * delta;
+        const frictionStep = Math.pow(friction, delta * 60);
+        b.vx *= frictionStep;
+        b.vy *= frictionStep;
 
+        if (b.x <= 0 || b.x >= 100) {
+          b.x = Math.max(0, Math.min(100, b.x));
+          b.vx *= -edgeBounce;
+        }
+
+        const obstacleHit = obstaclesRef.current.some(
+          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+        );
+
+        if (obstacleHit) {
+          b.hitType = "none";
+          b.hasBounced = false;
+          b.vx = 0;
+          b.vy = 0;
+          b.y = PLAYER_START_Y;
+          setBallPhase("missed");
+          setConsecutiveHits(0);
+          onChallengeProgress?.("perfect_streak", 0);
+          setAttempts((prev) => Math.max(prev - 1, 0));
+        }
+
+        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
+        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        const distToTarget = Math.hypot(dxPx, dyPx);
+
+        if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target") {
+          const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
+          const velPx = {
+            x: (b.vx * viewport.width) / 100,
+            y: (b.vy * viewport.height) / 100,
+          };
+          const dot = velPx.x * norm.x + velPx.y * norm.y;
+          const reflectX = velPx.x - 2 * dot * norm.x;
+          const reflectY = velPx.y - 2 * dot * norm.y;
+          b.vx = (reflectX / viewport.width) * 100;
+          b.vy = (reflectY / viewport.height) * 100;
+          b.hasBounced = true;
+          b.hitType = "target";
+          setBallPhase("hit");
+          soundManager.playImpact();
+
+          const pointsEarned = Math.abs(bullseyeRef.current.position - b.x) < 6 ? 60 : 10;
+          const coinsGained = calculateCoinsEarned(power, true);
+          setScore((prev) => {
+            const newScore = prev + pointsEarned;
+            onAchievementProgress?.("first_1000", newScore);
+            onChallengeProgress?.("score_500", newScore);
+            return newScore;
+          });
+          setConsecutiveHits((prev) => {
+            const newStreak = prev + 1;
+            onAchievementProgress?.("streak_10", newStreak);
+            onChallengeProgress?.("perfect_streak", newStreak);
+            return newStreak;
+          });
+          setCoins((prev) => prev + coinsGained);
+          setCoinsEarned((prev) => prev + coinsGained);
+          bullseyeHitsRef.current += 1;
+          onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+          setShowConfetti(true);
+        }
+
+        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
+          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
+          b.vy = Math.abs(b.vy) * farCurbBounce;
+          b.vx *= 0.95;
+          b.hasBounced = true;
+          if (b.hitType === "none") b.hitType = "curb";
+          setBallPhase("bouncing");
+          soundManager.playImpact();
+        }
+
+        if (b.y >= PLAYER_START_Y && b.hasBounced) {
+          b.y = PLAYER_START_Y;
+          b.vx *= 0.8;
+          b.vy *= -0.2;
+        }
+
+        const speedPx = Math.hypot((b.vx * viewport.width) / 100, (b.vy * viewport.height) / 100);
+        if (speedPx < 8 && b.hasBounced) {
+          setPlayState(b.hitType === "target" ? "SCORED" : "MISSED");
+          playStateRef.current = b.hitType === "target" ? "SCORED" : "MISSED";
+          if (b.hitType !== "target") {
+            setBallPhase("missed");
+            setConsecutiveHits(0);
+            onChallengeProgress?.("perfect_streak", 0);
+            setAttempts((prev) => Math.max(prev - 1, 0));
+            soundManager.playFail();
+          } else {
+            setBallPhase("bouncing");
+            soundManager.playSuccess();
+          }
         if (b.x <= 5 || b.x >= 95) {
           b.x = Math.max(5, Math.min(95, b.x));
           b.vx *= -0.8;
@@ -543,6 +668,9 @@ export const GameCanvas = ({
       if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
         setPlayState("RESET");
         resetTimeout = window.setTimeout(() => {
+          ballPhysicsRef.current = { x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y, vx: 0, vy: 0, spin: 0, hasBounced: false, hitType: "none" };
+          setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
+          setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
           ballPhysicsRef.current = { x: 50, y: PLAYER_START_Y, vx: 0, vy: 0, spin: 0, hasBounced: false };
           setBallPosition({ x: 50, y: PLAYER_START_Y });
           setBallHorizontalPosition(50);
@@ -565,6 +693,7 @@ export const GameCanvas = ({
       if (resetTimeout) clearTimeout(resetTimeout);
       lastFrameRef.current = 0;
     };
+  }, [PLAYER_START_Y, ROAD_BOTTOM_PERCENT, ROAD_TOP_PERCENT, TARGET_Y, currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, power, viewport.height, viewport.width]);
   }, [PLAYER_START_Y, ROAD_TOP_PERCENT, TARGET_Y, currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, power]);
 
   const startCharging = () => {
@@ -663,7 +792,7 @@ export const GameCanvas = ({
     const velocityY = deltaY / duration;
 
     if (Math.hypot(deltaX, deltaY) > 20) {
-      throwBallFromGesture(velocityX, velocityY, rect);
+      throwBallFromGesture(velocityX, velocityY);
     }
 
     touchStartRef.current = null;
@@ -673,19 +802,21 @@ export const GameCanvas = ({
 
   const throwBall = (throwPower: number, angle: number = 0) => {
     if (isThrowing || isBallFlying || !gameStarted || isPausedRef.current) return;
-    const speed = (320 + Math.min(throwPower, 100) * 1.1) * Math.max(0.8, viewport.scaleY);
-    const vx = Math.sin((angle * Math.PI) / 180) * speed * 0.55 * 0.045;
-    const vy = speed;
-    throwBallFromVelocity(vx, vy);
+    const targetDx = bullseyeRef.current.position - ballHorizontalPosition;
+    const targetDy = TARGET_Y - PLAYER_START_Y;
+    const baseAngle = Math.atan2(targetDy, targetDx);
+    const aimAngle = baseAngle + ((angle * Math.PI) / 180) * 0.25;
+    const launchSpeedPx = 460 + Math.min(throwPower, 100) * 5.8;
+    throwBallFromVelocity(aimAngle, launchSpeedPx);
   };
 
-  const throwBallFromGesture = (velocityX: number, velocityY: number, rect: DOMRect) => {
-    const mappedVx = Math.max(-520, Math.min(520, (velocityX / rect.width) * 700)) * 0.045;
-    const mappedVy = Math.max(320, Math.min(460, (-velocityY / rect.height) * 900));
-    throwBallFromVelocity(mappedVx, mappedVy);
+  const throwBallFromGesture = (velocityX: number, velocityY: number) => {
+    const aimAngle = Math.atan2(velocityY, velocityX);
+    const launchSpeedPx = Math.max(420, Math.min(980, Math.hypot(velocityX, velocityY) * 0.16));
+    throwBallFromVelocity(aimAngle, launchSpeedPx);
   };
 
-  const throwBallFromVelocity = (vx: number, vy: number) => {
+  const throwBallFromVelocity = (aimAngle: number, launchSpeedPx: number) => {
     if (isThrowing || isBallFlying || !gameStarted) return;
     setIsThrowing(true);
     setIsBallFlying(true);
@@ -693,6 +824,14 @@ export const GameCanvas = ({
     setPlayState("BALL_IN_PLAY");
     setShowConfetti(false);
     soundManager.playThrow();
+    const vxPercent = (Math.cos(aimAngle) * launchSpeedPx / viewport.width) * 100;
+    const vyPercent = (Math.sin(aimAngle) * launchSpeedPx / viewport.height) * 100;
+    ballPhysicsRef.current = {
+      x: ballHorizontalPosition,
+      y: PLAYER_START_Y,
+      vx: vxPercent,
+      vy: vyPercent,
+      spin: vxPercent * 0.0015,
     ballPhysicsRef.current = {
       x: ballHorizontalPosition,
       y: PLAYER_START_Y,
@@ -700,6 +839,7 @@ export const GameCanvas = ({
       vy: -Math.abs(vy),
       spin: vx * 0.0015,
       hasBounced: false,
+      hitType: "none",
     };
     setBallPosition({ x: ballHorizontalPosition, y: PLAYER_START_Y });
   };
@@ -719,11 +859,12 @@ export const GameCanvas = ({
     setCoinsEarned(0);
     setConsecutiveHits(0);
     bullseyeHitsRef.current = 0;
-    setBallHorizontalPosition(50);
+    setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
     setCurbCoins([]);
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
+    setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
     setBallPosition({ x: 50, y: PLAYER_START_Y });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
@@ -802,6 +943,7 @@ export const GameCanvas = ({
   return (
     <div 
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center top", height: "100dvh" }}
       style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", height: "100dvh" }}
     >
       {/* Starting Screen */}
@@ -897,8 +1039,8 @@ export const GameCanvas = ({
         onPointerUp={handlePointerUp}
       >
         {/* HUD - Mobile Responsive */}
-        <div className="absolute left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2" style={{ top: 'max(0.5rem, env(safe-area-inset-top))' }}>
-          <div className="flex items-center gap-2 sm:gap-4">
+        <div className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5" style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: "18dvh" }}>
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {showBackConfirm ? (
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
                 <span className="text-xs text-foreground font-medium">Quit?</span>
@@ -949,12 +1091,12 @@ export const GameCanvas = ({
             )}
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
-            <Card className="px-2 sm:px-6 py-1.5 sm:py-3 bg-card/90 backdrop-blur-sm border-2 border-primary flex-shrink-0">
-              <div className="flex items-center gap-2 sm:gap-8">
+          <div className="flex items-center gap-1.5 sm:gap-3 w-full sm:w-auto justify-end">
+            <Card className="px-2 py-1.5 bg-card/90 backdrop-blur-sm border border-primary flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <div className="text-center">
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">SCORE</div>
-                  <div className="text-lg sm:text-3xl font-bold text-primary">{score}</div>
+                  <div className="text-base sm:text-2xl font-bold text-primary">{score}</div>
                 </div>
                 <div className="h-6 sm:h-8 w-px bg-border hidden sm:block" />
                 <div className="text-center hidden md:block">
@@ -964,14 +1106,14 @@ export const GameCanvas = ({
                 <div className="h-6 sm:h-8 w-px bg-border" />
                 <div className="text-center">
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">TIME</div>
-                  <div className={`text-lg sm:text-3xl font-bold ${
+                  <div className={`text-base sm:text-2xl font-bold ${
                     timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
                   }`}>{formatTime(timeRemaining)}</div>
                 </div>
                 <div className="h-6 sm:h-8 w-px bg-border" />
                 <div className="text-center">
                   <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold whitespace-nowrap"><span className="sm:hidden">LIVES</span><span className="hidden sm:inline">LIVES/ATTEMPTS</span></div>
-                  <div className="text-lg sm:text-3xl font-bold text-orange-400">{attempts}</div>
+                  <div className="text-base sm:text-2xl font-bold text-orange-400">{attempts}</div>
                 </div>
               </div>
             </Card>
@@ -984,11 +1126,13 @@ export const GameCanvas = ({
 
         {/* Scene layers: full background -> road -> gameplay objects */}
         <div
+          className={`absolute left-0 right-0 transition-all duration-700 ${
           className={`absolute bottom-0 left-0 right-0 transition-all duration-700 ${
             gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : ""
           }`}
           style={{
             top: `${ROAD_TOP_PERCENT}%`,
+            bottom: `${100 - ROAD_BOTTOM_PERCENT}%`,
             background: gameWon ? undefined : "hsl(var(--game-street))",
           }}
         >
@@ -1002,6 +1146,14 @@ export const GameCanvas = ({
           ))}
         </div>
 
+        <div className="absolute left-0 right-0 h-1 bg-gray-300/90 shadow-md pointer-events-none" style={{ top: `${CURB_Y_PERCENT}%` }} />
+
+        <div className="absolute inset-0 pointer-events-none">
+          {curbCoins.map((coin) => (
+            <HoveringCoin key={coin.id} position={coin.position} value={coin.value} collected={coin.collected} />
+          ))}
+
+          <div className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.position}%`, top: `${TARGET_Y}%` }}>
         <div className="absolute inset-0 pointer-events-none">
           {curbCoins.map((coin) => (
             <HoveringCoin key={coin.id} position={coin.position} value={coin.value} collected={coin.collected} />
@@ -1048,6 +1200,7 @@ export const GameCanvas = ({
 
 
         {/* Controls - single bottom overlay for mobile */}
+        <div className="absolute left-0 right-0 z-20 flex flex-col items-center gap-2 bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ top: `${MOBILE_LAYOUT.CONTROLS_TOP_PERCENT}%`, height: "min(12dvh, 112px)", paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}>
         <div className="absolute left-2 right-2 z-20 flex flex-col items-center gap-2 rounded-xl bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ bottom: "max(0.6rem, env(safe-area-inset-bottom))" }}>
           {ballPhase === "ready" && (
             <div className="flex items-center gap-2 w-full justify-center">
