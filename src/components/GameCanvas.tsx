@@ -86,8 +86,6 @@ const MOBILE_LAYOUT = {
 const ROAD_HEIGHT_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - MOBILE_LAYOUT.ROAD_TOP_PERCENT;
 const PLAYER_START_Y_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - ROAD_HEIGHT_PERCENT * 0.22;
 const TARGET_Y_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.18;
-const DEBUG_GAME_CANVAS = false;
-
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "RESOLVING" | "SCORED" | "MISSED" | "RESET";
 
 export type Difficulty = "easy" | "medium" | "hard";
@@ -116,9 +114,6 @@ export const GameCanvas = ({
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [showFloatingCoins, setShowFloatingCoins] = useState(false);
-  const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
-  const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
   const [consecutiveHits, setConsecutiveHits] = useState(0);
   const [isThrowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -151,10 +146,9 @@ export const GameCanvas = ({
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
-  useEffect(() => { return () => { if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current); }; }, []);
+  useEffect(() => { return () => { if (chargeIntervalRef.current) cancelAnimationFrame(chargeIntervalRef.current); }; }, []);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const bullseyeHitsRef = useRef(0);
-  const ballFlightRafRef = useRef<number | null>(null);
   const gameAreaRef = useRef<HTMLDivElement | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const scoreRef = useRef(0);
@@ -167,8 +161,6 @@ export const GameCanvas = ({
   const ROAD_TOP_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT;
   const ROAD_BOTTOM_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT;
   const CURB_Y_PERCENT = MOBILE_LAYOUT.FAR_CURB_PERCENT;
-  const PLAYER_START_Y = PLAYER_START_Y_PERCENT;
-  const TARGET_Y = TARGET_Y_PERCENT;
   const isPausedRef = useRef(false);
   const powerRef = useRef(0);
   const attemptResolvedRef = useRef(true);
@@ -182,7 +174,6 @@ export const GameCanvas = ({
   useEffect(() => { powerRef.current = power; }, [power]);
   useEffect(() => { onAchievementProgressRef.current = onAchievementProgress; }, [onAchievementProgress]);
   useEffect(() => { onChallengeProgressRef.current = onChallengeProgress; }, [onChallengeProgress]);
-  const lastFrameRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const curbCoinsRef = useRef<CurbCoin[]>([]);
   const bullseyeRef = useRef<BullseyeTarget>({ x: initialLayout.targetX, y: initialLayout.targetY, direction: 1 });
@@ -306,7 +297,6 @@ export const GameCanvas = ({
           }),
         );
         setBallHorizontalPosition((nextLayout.playerStartX / nextLayout.screenW) * 100);
-        setBullseyeTarget((prev) => ({ ...prev, x: nextLayout.targetX, y: nextLayout.targetY }));
       }
     };
 
@@ -330,6 +320,7 @@ export const GameCanvas = ({
   useEffect(() => {
     if (score >= 100 && !gameWon && gameStarted && !gameEnded) {
       setGameWon(true);
+      soundManager.playMilestone();
     }
   }, [score, gameWon, gameStarted, gameEnded]);
 
@@ -398,17 +389,10 @@ export const GameCanvas = ({
     return () => el.removeEventListener('touchmove', block);
   }, []);
 
-  // Cleanup rAF on unmount
-  useEffect(() => {
-    return () => {
-      if (ballFlightRafRef.current) cancelAnimationFrame(ballFlightRafRef.current);
-    };
-  }, []);
-
   // Handle keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameStarted || isThrowing || isBallFlying || ballPhase !== 'ready') return;
+      if (!gameStarted || isPausedRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
       if (e.key === 'ArrowLeft') {
         moveLeft();
@@ -421,7 +405,7 @@ export const GameCanvas = ({
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (!gameStarted) return;
+      if (!gameStarted || isPausedRef.current) return;
       if (e.code === 'Space') {
         e.preventDefault();
         releaseThrow();
@@ -439,10 +423,6 @@ export const GameCanvas = ({
   const moveLeft = () => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     const layout = layoutRef.current;
-    const minX = layout.ballRadius;
-    const nextX = Math.max(minX, ballPhysicsRef.current.x - layout.screenW * 0.08);
-    ballPhysicsRef.current.x = nextX;
-    setBallPosition((p) => ({ ...p, x: nextX }));
     setBallHorizontalPosition(prev => {
       const next = Math.max(10, prev - 10);
       const xPx = (next / 100) * layout.screenW;
@@ -456,10 +436,6 @@ export const GameCanvas = ({
   const moveRight = () => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
     const layout = layoutRef.current;
-    const maxX = layout.screenW - layout.ballRadius;
-    const nextX = Math.min(maxX, ballPhysicsRef.current.x + layout.screenW * 0.08);
-    ballPhysicsRef.current.x = nextX;
-    setBallPosition((p) => ({ ...p, x: nextX }));
     setBallHorizontalPosition(prev => {
       const next = Math.min(90, prev + 10);
       const xPx = (next / 100) * layout.screenW;
@@ -510,8 +486,6 @@ export const GameCanvas = ({
     setIsThrowing(false);
     throwStartTimeRef.current = null;
     setBallHorizontalPosition((layout.playerStartX / layout.screenW) * 100);
-    setIsBallFlying(false);
-    setIsThrowing(false);
     setPower(0);
     powerRef.current = 0;
     setBallPhase("ready");
@@ -671,11 +645,9 @@ export const GameCanvas = ({
 
     const loop = (timestamp: number) => {
       if (cancelled) return;
-      if (!lastFrameRef.current) lastFrameRef.current = timestamp;
       const last = lastFrameTimeRef.current ?? timestamp;
       const delta = Math.min((timestamp - last) / 1000, 0.033);
       lastFrameTimeRef.current = timestamp;
-      lastFrameRef.current = timestamp;
 
       setObstacles((prev) =>
         prev
@@ -816,19 +788,6 @@ export const GameCanvas = ({
 
         setBallPosition({ x: b.x, y: b.y });
         setBallHorizontalPosition((b.x / liveLayout.screenW) * 100);
-
-        if (DEBUG_GAME_CANVAS) {
-          console.debug("[GameCanvas]", {
-            playState: playStateRef.current,
-            ball: { x: b.x, y: b.y, vx: b.vx, vy: b.vy },
-            layout: {
-              roadTopY: liveLayout.roadTopY,
-              roadBottomY: liveLayout.roadBottomY,
-              targetX: liveLayout.targetX,
-              targetY: liveLayout.targetY,
-            },
-          });
-        }
       }
 
       animationFrameRef.current = requestAnimationFrame(loop);
@@ -846,7 +805,6 @@ export const GameCanvas = ({
         resetTimeoutRef.current = null;
       }
       lastFrameTimeRef.current = null;
-      lastFrameRef.current = 0;
     };
   }, [currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, viewport.height, viewport.width]);
 
@@ -1017,8 +975,11 @@ export const GameCanvas = ({
       setHighScore(score);
     }
 
-    const newGamesPlayed = gamesPlayed + 1;
-    setGamesPlayed(newGamesPlayed);
+    setGamesPlayed(prev => {
+      const newGamesPlayed = prev + 1;
+      onAchievementProgressRef.current?.('play_50', newGamesPlayed);
+      return newGamesPlayed;
+    });
 
     setScore(0);
     setCoinsEarned(0);
@@ -1051,15 +1012,6 @@ export const GameCanvas = ({
       toast.success(`🏆 New Top ${newRank} Score!`, {
         description: `You made it to the leaderboard!`,
       });
-    }
-    
-    // Track games played
-    const newGamesPlayed = gamesPlayed + 1;
-    setGamesPlayed(newGamesPlayed);
-    
-    // Track achievement for games played
-    if (onAchievementProgress) {
-      onAchievementProgress('play_50', newGamesPlayed);
     }
     
     toast.success("Time's Up!", {
