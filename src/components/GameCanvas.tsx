@@ -74,7 +74,9 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
+  // Y is bottom-% of full screen. Resting ball sits on near sidewalk (~8%),
+  // far curb is around 58%, sky/backdrop above. See scene layout.
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 8 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
