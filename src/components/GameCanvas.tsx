@@ -52,28 +52,28 @@ type GameLayout = {
 };
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
-  const hudBottomY = height * 0.18;
-  const roadTopY = height * 0.68;
-  const controlsTopY = height * 0.86;
-  const roadBottomY = controlsTopY;
-  const roadH = roadBottomY - roadTopY;
+  const hudBottomY    = height * 0.18;
+  const roadTopY      = height * 0.30;   // far curb (opposite side, top of view)
+  const controlsTopY  = height * 0.88;   // near curb / controls start
+  const roadBottomY   = controlsTopY;
+  const roadH         = roadBottomY - roadTopY; // ~58% of screen
 
   return {
     screenW: width,
     screenH: height,
     hudBottomY,
-    farCurbY: roadTopY - Math.max(8, height * 0.012),
+    farCurbY:      roadTopY,
     roadTopY,
     roadBottomY,
     controlsTopY,
-    playerStartX: width * 0.72,
-    playerStartY: roadTopY + roadH * 0.70,
-    targetX: width * 0.24,
-    targetY: roadTopY + roadH * 0.22,
-    ballRadius: Math.max(13, width * 0.035),
-    targetRadius: Math.max(22, width * 0.06),
-    coinMinY: roadTopY + roadH * 0.18,
-    coinMaxY: roadTopY + roadH * 0.62,
+    playerStartX:  width * 0.50,                          // center of near curb
+    playerStartY:  roadBottomY - Math.max(28, height * 0.04), // just above near curb
+    targetX:       width * 0.50,                          // starts centered on far curb
+    targetY:       roadTopY + Math.max(18, height * 0.025),   // just below far curb
+    ballRadius:    Math.max(16, width * 0.038),
+    targetRadius:  Math.max(22, width * 0.06),
+    coinMinY:      roadTopY + roadH * 0.30,
+    coinMaxY:      roadTopY + roadH * 0.68,
   };
 };
 
@@ -966,8 +966,9 @@ export const GameCanvas = ({
     throwStartTimeRef.current = performance.now();
     const vxPx = Math.cos(aimAngle) * launchSpeedPx;
     const vyPx = Math.sin(aimAngle) * launchSpeedPx;
+    const launchX = ballPhysicsRef.current.x || layout.playerStartX;
     ballPhysicsRef.current = {
-      x: layout.playerStartX,
+      x: launchX,
       y: layout.playerStartY,
       vx: vxPx,
       vy: vyPx,
@@ -975,7 +976,7 @@ export const GameCanvas = ({
       hasBounced: false,
       hitType: "none",
     };
-    setBallPosition({ x: layout.playerStartX, y: layout.playerStartY });
+    setBallPosition({ x: launchX, y: layout.playerStartY });
   };
 
   const restartGame = () => {
