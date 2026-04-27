@@ -741,10 +741,18 @@ export const GameCanvas = ({
   };
 
   return (
-    <div 
-      className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
-      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: '70%' }}
-    >
+    <div className="relative w-full h-screen overflow-hidden bg-slate-900">
+      {/* Sky + backdrop layer (top ~42% of screen, ends at far curb at 58%) */}
+      <div
+        className="absolute top-0 left-0 right-0 bg-cover bg-center"
+        style={{
+          height: '42%',
+          backgroundImage: `url(${getBackdropUrl()})`,
+        }}
+      >
+        {/* Soft fade into the curb */}
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-black/40 pointer-events-none" />
+      </div>
       {/* Starting Screen */}
       {!gameStarted && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
