@@ -52,28 +52,28 @@ type GameLayout = {
 };
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
-  const hudBottomY = height * 0.18;
-  const roadTopY = height * 0.68;
-  const controlsTopY = height * 0.86;
-  const roadBottomY = controlsTopY;
-  const roadH = roadBottomY - roadTopY;
+  const hudBottomY    = height * 0.18;
+  const roadTopY      = height * 0.30;   // far curb (opposite side, top of view)
+  const controlsTopY  = height * 0.88;   // near curb / controls start
+  const roadBottomY   = controlsTopY;
+  const roadH         = roadBottomY - roadTopY; // ~58% of screen
 
   return {
     screenW: width,
     screenH: height,
     hudBottomY,
-    farCurbY: roadTopY - Math.max(8, height * 0.012),
+    farCurbY:      roadTopY,
     roadTopY,
     roadBottomY,
     controlsTopY,
-    playerStartX: width * 0.72,
-    playerStartY: roadTopY + roadH * 0.70,
-    targetX: width * 0.24,
-    targetY: roadTopY + roadH * 0.22,
-    ballRadius: Math.max(13, width * 0.035),
-    targetRadius: Math.max(22, width * 0.06),
-    coinMinY: roadTopY + roadH * 0.18,
-    coinMaxY: roadTopY + roadH * 0.62,
+    playerStartX:  width * 0.50,                          // center of near curb
+    playerStartY:  roadBottomY - Math.max(28, height * 0.04), // just above near curb
+    targetX:       width * 0.50,                          // starts centered on far curb
+    targetY:       roadTopY + Math.max(18, height * 0.025),   // just below far curb
+    ballRadius:    Math.max(16, width * 0.038),
+    targetRadius:  Math.max(22, width * 0.06),
+    coinMinY:      roadTopY + roadH * 0.30,
+    coinMaxY:      roadTopY + roadH * 0.68,
   };
 };
 
@@ -966,8 +966,9 @@ export const GameCanvas = ({
     throwStartTimeRef.current = performance.now();
     const vxPx = Math.cos(aimAngle) * launchSpeedPx;
     const vyPx = Math.sin(aimAngle) * launchSpeedPx;
+    const launchX = ballPhysicsRef.current.x || layout.playerStartX;
     ballPhysicsRef.current = {
-      x: layout.playerStartX,
+      x: launchX,
       y: layout.playerStartY,
       vx: vxPx,
       vy: vyPx,
@@ -975,7 +976,7 @@ export const GameCanvas = ({
       hasBounced: false,
       hitType: "none",
     };
-    setBallPosition({ x: layout.playerStartX, y: layout.playerStartY });
+    setBallPosition({ x: launchX, y: layout.playerStartY });
   };
 
   const restartGame = () => {
@@ -1295,37 +1296,47 @@ export const GameCanvas = ({
 
         {/* Scene layers: backdrop -> road -> gameplay objects */}
         <div
-          className={`absolute left-0 right-0 z-10 overflow-hidden transition-all duration-700 ${
-            gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : ""
-          }`}
+          className="absolute left-0 right-0 z-10 overflow-hidden transition-all duration-700"
           style={{
             top: layoutState.roadTopY,
             height: layoutState.roadBottomY - layoutState.roadTopY,
             background: gameWon
-              ? undefined
-              : "linear-gradient(180deg, rgba(38,38,38,0.96) 0%, rgba(31,31,31,0.98) 45%, rgba(24,24,24,1) 100%)",
+              ? "linear-gradient(to top, rgba(88,28,135,1) 0%, rgba(107,33,168,0.97) 50%, rgba(126,34,206,0.94) 100%)"
+              : "linear-gradient(to top, rgba(45,42,38,1) 0%, rgba(32,30,28,0.97) 50%, rgba(22,20,18,0.96) 100%)",
             boxShadow: "0 -10px 24px rgba(0,0,0,0.28)",
           }}
         >
+          {/* Far curb strip at top of road (opposite side where bullseye sits) */}
           <div
             className="absolute left-0 right-0 top-0"
             style={{
-              height: Math.max(10, layoutState.screenH * 0.014),
+              height: Math.max(14, layoutState.screenH * 0.018),
               background: gameWon
                 ? "linear-gradient(180deg, #fde047 0%, #ca8a04 100%)"
-                : "linear-gradient(180deg, #c6ced3 0%, #7d878e 100%)",
+                : "linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%)",
               borderBottom: "1px solid rgba(255,255,255,0.25)",
             }}
           />
+
+          {/* Near curb strip at bottom of road (your side where you stand) */}
           <div
-            className="absolute left-0 right-0"
+            className="absolute left-0 right-0 bottom-0"
             style={{
-              top: "48%",
-              height: 3,
-              background: gameWon ? "rgba(192,132,252,0.86)" : "rgba(245,196,0,0.86)",
-              boxShadow: gameWon ? "0 0 8px rgba(192,132,252,0.25)" : "0 0 8px rgba(245,196,0,0.25)",
+              height: Math.max(14, layoutState.screenH * 0.018),
+              background: gameWon
+                ? "linear-gradient(0deg, #fde047 0%, #ca8a04 100%)"
+                : "linear-gradient(0deg, #e2e8f0 0%, #94a3b8 100%)",
+              borderTop: "1px solid rgba(255,255,255,0.25)",
             }}
           />
+
+          {/* Perspective lane dividers — two converging lines giving 3D road feel */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-70" preserveAspectRatio="none">
+            {/* Left lane marker — runs from bottom-left toward center-top */}
+            <line x1="25%" y1="100%" x2="45%" y2="0%" stroke="rgba(245,196,0,0.7)" strokeWidth="2" strokeDasharray="24 16" />
+            {/* Right lane marker — runs from bottom-right toward center-top */}
+            <line x1="75%" y1="100%" x2="55%" y2="0%" stroke="rgba(245,196,0,0.7)" strokeWidth="2" strokeDasharray="24 16" />
+          </svg>
 
           {obstacles.map((obs) => (
             <div key={obs.id} className="absolute transition-all" style={{ left: `${obs.position}%`, bottom: "14%" }}>
@@ -1334,15 +1345,10 @@ export const GameCanvas = ({
           ))}
         </div>
 
-        <div
-          className="absolute left-0 right-0 z-10 pointer-events-none"
-          style={{
-            top: layoutState.farCurbY,
-            height: Math.max(2, layoutState.screenH * 0.004),
-            background: "rgba(226,232,240,0.72)",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-          }}
-        />
+        {/* Near curb indicator — thin line just below road showing where player stands */}
+        <div className="absolute left-0 right-0 z-10 pointer-events-none"
+          style={{ top: layoutState.roadBottomY, height: Math.max(3, layoutState.screenH * 0.005),
+          background: "rgba(226,232,240,0.6)", boxShadow: "0 -2px 8px rgba(0,0,0,0.3)" }} />
 
         <div className="absolute inset-0 pointer-events-none">
           {visibleCurbCoins.map((coin) => (
@@ -1362,10 +1368,10 @@ export const GameCanvas = ({
 
           <div className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.x}px`, top: `${bullseyeTarget.y}px` }}>
             <div className="relative">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-500 animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-red-500" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-lg" />
             </div>
           </div>
 
