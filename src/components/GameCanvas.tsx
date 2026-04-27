@@ -447,41 +447,41 @@ export const GameCanvas = ({
       });
     };
 
-    // Phase 1: Ball flies to curb - speed based on power
-    // Weak throws (0-40): slower, lower arc
-    // Medium throws (40-70): moderate speed
-    // Strong throws (70-100): faster, higher arc
-    
+    // Phase 1: Ball flies from near sidewalk (y=8) up & away to far curb (y=58)
+    // Weak throws fly slower with a smaller arc; strong throws are faster with a higher peak.
+
     const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
-    const arcHeight = throwPower < 40 ? 60 : throwPower < 70 ? 75 : 85; // max y position during arc
-    
+    const REST_Y = 8;       // near sidewalk (player's feet)
+    const CURB_Y = 58;      // far curb (where bullseye lives)
+    const peakBoost = throwPower < 40 ? 8 : throwPower < 70 ? 18 : 28; // extra height above curb at apex
+
     setBallPhase('flying');
     const startX = ballHorizontalPosition;
-    setBallPosition({ x: startX, y: 80 });
-    
+    setBallPosition({ x: startX, y: REST_Y });
+
     // Animate ball arc with horizontal movement based on angle
     const startTime = Date.now();
     const animateBallFlight = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / flightDuration, 1);
-      
-      // Parabolic arc calculation
-      const yProgress = 1 - Math.pow(1 - progress, 2); // Ease out quad for y
-      const arcY = 80 - (yProgress * 75) + (Math.sin(progress * Math.PI) * (arcHeight - 80));
-      
+
+      // Linear travel from near sidewalk up to far curb, plus a sine-bump for the arc apex
+      const baseY = REST_Y + (CURB_Y - REST_Y) * progress;
+      const arcY = baseY + Math.sin(progress * Math.PI) * peakBoost;
+
       // Smooth horizontal movement from start to target
       const currentX = startX + (targetHorizontalPosition - startX) * progress;
-      
+
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
-      
+
       if (progress < 1) {
         requestAnimationFrame(animateBallFlight);
       }
     };
-    
+
     requestAnimationFrame(animateBallFlight);
-    
+
     setTimeout(() => {
       // Check for collision mid-flight
       if (checkObstacleCollision()) {
@@ -492,9 +492,9 @@ export const GameCanvas = ({
         toast.error("Hit an obstacle!", {
           description: "Ball was blocked! Streak reset!",
         });
-        
+
         setTimeout(() => {
-          setBallPosition({ x: targetHorizontalPosition, y: 80 });
+          setBallPosition({ x: targetHorizontalPosition, y: REST_Y });
           setBallPhase('ready');
           setIsBallFlying(false);
           setIsThrowing(false);
@@ -502,8 +502,8 @@ export const GameCanvas = ({
         }, 600);
         return;
       }
-      
-      setBallPosition({ x: targetHorizontalPosition, y: 5 }); // Move to curb at target horizontal position
+
+      setBallPosition({ x: targetHorizontalPosition, y: CURB_Y }); // Land on far curb
     }, flightDuration * 0.6);
 
     setTimeout(() => {
