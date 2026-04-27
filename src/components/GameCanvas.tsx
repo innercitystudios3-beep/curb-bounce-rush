@@ -878,151 +878,196 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Street and curb */}
-        <div className="flex-1 flex items-end">
-          <div className={`w-full h-64 relative transition-all duration-1000 ${
-            gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
-          }`} style={{ 
-            background: gameWon ? undefined : "hsl(var(--game-street))" 
-          }}>
-            {/* Curb */}
+        {/* Far curb strip — sits at the horizon, holds the bullseye + collectable coins */}
+        <div
+          className={`absolute left-0 right-0 z-10 transition-colors duration-1000 ${
+            gameWon
+              ? 'bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700'
+              : 'bg-gradient-to-b from-gray-300 via-gray-500 to-gray-700'
+          } ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
+          style={{
+            bottom: '58%',
+            height: '4%',
+            boxShadow: ballPhase === 'hit'
+              ? '0 4px 14px rgba(0,0,0,0.5), 0 0 40px rgba(255, 165, 0, 0.7)'
+              : '0 4px 14px rgba(0,0,0,0.5)',
+          }}
+        >
+          {/* Impact ring at landing position */}
+          {ballPhase === 'hit' && (
             <div
-              className={`absolute top-0 left-0 right-0 h-4 transition-all duration-1000 ${
-                ballPhase === 'hit' ? 'animate-pulse' : ''
-              } ${
-                gameWon 
-                  ? 'bg-gradient-to-b from-yellow-400 to-yellow-600' 
-                  : 'bg-gradient-to-b from-gray-400 to-gray-600'
-              }`}
-              style={{ 
-                boxShadow: ballPhase === 'hit' 
-                  ? "0 4px 10px rgba(0,0,0,0.5), 0 0 30px rgba(255, 165, 0, 0.6)"
-                  : "0 4px 10px rgba(0,0,0,0.5)" 
-              }}
+              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${ballPosition.x}%` }}
             >
-              {/* Impact effect at ball position */}
-              {ballPhase === 'hit' && (
-                <div 
-                  className="absolute top-0 -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${ballPosition.x}%` }}
-                >
-                  <div className="w-16 h-16 rounded-full bg-orange-500/40 animate-ping" />
-                </div>
-              )}
-              
-              {/* Hovering coins over curb */}
-              {curbCoins.map((coin) => (
-                <HoveringCoin
-                  key={coin.id}
-                  position={coin.position}
-                  value={coin.value}
-                  collected={coin.collected}
-                />
-              ))}
-              
-              {/* Bullseye Target */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 transition-all duration-75"
-                style={{ left: `${bullseyeTarget.position}%` }}
-              >
-                <div className="relative -translate-x-1/2">
-                  {/* Outer ring - red */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
-                  {/* Middle ring - white */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
-                  {/* Inner ring - red */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
-                  {/* Center dot - white */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
-                  {/* Glow effect */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-red-400/30 blur-md animate-pulse" />
-                </div>
-              </div>
+              <div className="w-20 h-20 rounded-full bg-orange-500/40 animate-ping" />
             </div>
-            
-            {/* Street lines */}
-            <div className={`absolute top-1/2 left-0 right-0 h-1 opacity-80 transition-all duration-1000 ${
-              gameWon ? 'bg-purple-400' : 'bg-yellow-400'
-            }`} />
-            
-            {/* Position markers on opposite side of street */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-around px-8">
-              {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((pos) => (
-                <div
-                  key={pos}
-                  className="relative flex flex-col items-center"
-                  style={{ left: `${pos - 50}%` }}
-                >
-                  <div className={`w-1 h-3 rounded-full transition-all ${
-                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
-                      ? 'bg-green-400 h-6 shadow-[0_0_10px_rgba(74,222,128,0.8)]'
-                      : 'bg-white/40'
-                  }`} />
-                  <div className={`text-[8px] font-bold mt-0.5 transition-all ${
-                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
-                      ? 'text-green-400 scale-110'
-                      : 'text-white/50'
-                  }`}>
-                    {pos}
-                  </div>
-                </div>
-              ))}
-            </div>
+          )}
 
-            {/* Obstacles */}
-            {obstacles.map((obs) => (
+          {/* Hovering coins above the far curb */}
+          {curbCoins.map((coin) => (
+            <HoveringCoin
+              key={coin.id}
+              position={coin.position}
+              value={coin.value}
+              collected={coin.collected}
+            />
+          ))}
+
+          {/* Bullseye target — moves along the far curb */}
+          <div
+            className="absolute top-0 -translate-y-1/2 transition-all duration-75"
+            style={{ left: `${bullseyeTarget.position}%` }}
+          >
+            <div className="relative -translate-x-1/2">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-red-400/30 blur-md animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-red-500 animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-500" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-lg" />
+            </div>
+          </div>
+        </div>
+
+        {/* Road — perspective trapezoid between the two curbs (covers ~14%–58% of screen height) */}
+        <div
+          className={`absolute left-0 right-0 transition-colors duration-1000 ${
+            gameWon ? 'bg-gradient-to-b from-purple-900 to-purple-950' : ''
+          }`}
+          style={{
+            bottom: '14%',
+            height: '44%',
+            background: gameWon ? undefined : `hsl(var(--game-street))`,
+            clipPath: 'polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)',
+          }}
+        >
+          {/* Dashed center line that vanishes toward the horizon */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0"
+            style={{
+              width: '6%',
+              clipPath: 'polygon(45% 0%, 55% 0%, 100% 100%, 0% 100%)',
+              background:
+                'repeating-linear-gradient(to bottom, hsl(45 100% 54%) 0 8%, transparent 8% 16%)',
+              opacity: 0.85,
+            }}
+          />
+
+          {/* Obstacles — drive across the road, scaled by depth (their bottom %) */}
+          {obstacles.map((obs) => {
+            // Stable per-obstacle lane based on id (0..1 → top..bottom of road band)
+            const lane = ((obs.id * 37) % 100) / 100; // pseudo-random but stable
+            const depthScale = 0.45 + lane * 0.75; // far = small, near = bigger
+            const bottomPct = 6 + lane * 70; // within the road band
+            return (
               <div
                 key={obs.id}
-                className="absolute bottom-16 transition-all"
-                style={{ left: `${obs.position}%` }}
+                className="absolute transition-all"
+                style={{
+                  left: `${obs.position}%`,
+                  bottom: `${bottomPct}%`,
+                  transform: `translateX(-50%) scale(${depthScale})`,
+                  transformOrigin: 'center bottom',
+                }}
               >
                 <div
                   className={`${
-                    obs.type === "car"
-                      ? "w-20 h-12 bg-gradient-to-r from-red-600 to-red-800"
-                      : "w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-800"
+                    obs.type === 'car'
+                      ? 'w-24 h-12 bg-gradient-to-r from-red-600 to-red-800'
+                      : 'w-14 h-8 bg-gradient-to-r from-blue-600 to-blue-800'
                   } rounded-lg shadow-lg`}
                 />
               </div>
-            ))}
+            );
+          })}
+        </div>
 
-            {/* Ball */}
-            <div
-              className={`absolute w-16 h-16 ${
-                ballPhase === 'flying' ? 'transition-all duration-[800ms] ease-out' :
-                ballPhase === 'hit' ? 'scale-90' :
-                ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
-                ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
-                'transition-all duration-200'
-              }`}
-              style={{
-                left: `${ballPosition.x}%`,
-                bottom: `${ballPosition.y}%`,
-                filter: ballPhase === 'hit' ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))' : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
-                transform: `translateX(-50%) ${
-                  ballPhase === 'flying' ? 'scale(0.8) rotateZ(360deg)' :
-                  ballPhase === 'hit' ? 'scale(1.3)' :
-                  ballPhase === 'bouncing' ? 'scale(1.1) rotateZ(-360deg)' :
-                  ballPhase === 'missed' ? 'scale(0.6) rotateZ(180deg)' :
-                  'scale(1)'
-                }`,
-              }}
-            >
-              {getBallImageUrl(currentBall) ? (
-                <img 
-                  src={getBallImageUrl(currentBall)!} 
-                  alt="Ball" 
-                  className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
-                  <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
-                    ballPhase === 'hit' ? 'animate-pulse' : ''
-                  }`} />
+        {/* Near curb strip — the curb the player is standing on */}
+        <div
+          className={`absolute left-0 right-0 z-10 transition-colors duration-1000 ${
+            gameWon
+              ? 'bg-gradient-to-b from-yellow-400 to-yellow-700'
+              : 'bg-gradient-to-b from-gray-400 to-gray-700'
+          }`}
+          style={{ bottom: '14%', height: '3%', boxShadow: '0 -2px 6px rgba(0,0,0,0.4)' }}
+        />
+
+        {/* Sidewalk — player POV, holds resting ball + lane markers */}
+        <div
+          className="absolute left-0 right-0 bottom-0"
+          style={{
+            height: '14%',
+            background:
+              'repeating-linear-gradient(90deg, hsl(0 0% 78%) 0 14%, hsl(0 0% 72%) 14% 15%, hsl(0 0% 78%) 15% 29%, hsl(0 0% 72%) 29% 30%)',
+          }}
+        >
+          {/* Lane / position markers across the sidewalk */}
+          <div className="absolute top-2 left-0 right-0 flex justify-between px-6">
+            {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((pos) => {
+              const active = Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready';
+              return (
+                <div key={pos} className="flex flex-col items-center">
+                  <div
+                    className={`w-1 rounded-full transition-all ${
+                      active
+                        ? 'bg-green-400 h-7 shadow-[0_0_10px_rgba(74,222,128,0.9)]'
+                        : 'bg-slate-700/60 h-3'
+                    }`}
+                  />
+                  <div
+                    className={`text-[9px] font-bold mt-0.5 transition-all ${
+                      active ? 'text-green-500 scale-110' : 'text-slate-600'
+                    }`}
+                  >
+                    {pos}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
+        </div>
+
+        {/* Ball — positioned by bottom-% across the full scene */}
+        <div
+          className={`absolute z-20 ${
+            ballPhase === 'flying' ? '' :
+            ballPhase === 'hit' ? '' :
+            ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
+            ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
+            'transition-all duration-200'
+          }`}
+          style={{
+            left: `${ballPosition.x}%`,
+            bottom: `${ballPosition.y}%`,
+            // Perspective scale: bigger near sidewalk (y≈8), smaller at far curb (y≈58)
+            width: '4rem',
+            height: '4rem',
+            filter: ballPhase === 'hit'
+              ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))'
+              : 'drop-shadow(0 10px 15px rgba(0,0,0,0.5))',
+            transform: `translateX(-50%) scale(${
+              Math.max(0.45, 1 - (ballPosition.y - 8) / 100)
+            }) ${
+              ballPhase === 'flying' ? 'rotateZ(360deg)' :
+              ballPhase === 'hit' ? 'rotateZ(0deg)' :
+              ballPhase === 'bouncing' ? 'rotateZ(-360deg)' :
+              ballPhase === 'missed' ? 'rotateZ(180deg)' :
+              'rotateZ(0deg)'
+            }`,
+          }}
+        >
+          {getBallImageUrl(currentBall) ? (
+            <img
+              src={getBallImageUrl(currentBall)!}
+              alt="Ball"
+              className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
+            />
+          ) : (
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
+              <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
+                ballPhase === 'hit' ? 'animate-pulse' : ''
+              }`} />
+            </div>
+          )}
         </div>
 
 
