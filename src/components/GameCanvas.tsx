@@ -537,7 +537,7 @@ export const GameCanvas = ({
         if (success) {
           // Phase 3: Ball bounces back successfully (0.8s)
           setBallPhase('bouncing');
-          setBallPosition({ x: targetHorizontalPosition, y: 80 }); // Bounce back to target position
+          setBallPosition({ x: targetHorizontalPosition, y: 8 }); // Bounce back to near sidewalk
           soundManager.playSuccess();
           
           setTimeout(() => {
@@ -625,7 +625,7 @@ export const GameCanvas = ({
         } else {
           // Phase 3: Ball misses and falls (0.6s)
           setBallPhase('missed');
-          setBallPosition({ x: targetHorizontalPosition, y: -20 }); // Fall down at target position
+          setBallPosition({ x: targetHorizontalPosition, y: -10 }); // Fall off-screen
           soundManager.playFail();
           
           // Reset streak on miss
@@ -641,8 +641,8 @@ export const GameCanvas = ({
               description: "Try timing your power better. Streak reset!",
             });
             
-            // Reset
-            setBallPosition({ x: targetHorizontalPosition, y: 80 });
+            // Reset to near sidewalk
+            setBallPosition({ x: targetHorizontalPosition, y: 8 });
             setBallPhase('ready');
             setIsBallFlying(false);
             setIsThrowing(false);
@@ -672,7 +672,7 @@ export const GameCanvas = ({
     setCurbCoins([]);
     setGameEnded(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 80 });
+    setBallPosition({ x: 50, y: 8 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setShowLeaderboard(false);
