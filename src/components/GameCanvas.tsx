@@ -863,49 +863,134 @@ export const GameCanvas = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* HUD - Mobile Responsive */}
-        <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button 
-              variant="outline" 
+        {/* HUD — fluidly responsive across phone, tablet, desktop.
+            Type sizes use clamp() so they scale smoothly without jumpy breakpoints. */}
+        <div
+          className="absolute left-2 right-2 sm:left-4 sm:right-4 top-2 sm:top-4 z-20 flex flex-wrap items-start justify-between gap-2"
+        >
+          {/* Left cluster: Back + (desktop) ThrowMeter */}
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="outline"
               size="sm"
               onClick={onBackToDifficulty}
-              className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4"
+              className="bg-card/90 backdrop-blur-sm hover:bg-card px-2 sm:px-3"
+              style={{ fontSize: 'clamp(10px, 2.4vw, 14px)' }}
             >
               ← Back
             </Button>
-            
+
             {ballPhase === 'ready' && (
-              <div className="hidden sm:block">
+              <div className="hidden md:block">
                 <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
               </div>
             )}
           </div>
-          
-          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
-            <Card className="px-2 sm:px-6 py-1.5 sm:py-3 bg-card/90 backdrop-blur-sm border-2 border-primary flex-shrink-0">
-              <div className="flex items-center gap-2 sm:gap-8">
-                <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">SCORE</div>
-                  <div className="text-lg sm:text-3xl font-bold text-primary">{score}</div>
+
+          {/* Right cluster: Score / Elapsed / Time / Coins — single fluid card */}
+          <Card
+            className="bg-card/90 backdrop-blur-sm border-2 border-primary flex-shrink"
+            style={{
+              padding: 'clamp(4px, 1.2vw, 12px) clamp(8px, 2vw, 24px)',
+            }}
+          >
+            <div
+              className="flex items-center"
+              style={{ gap: 'clamp(8px, 2.5vw, 28px)' }}
+            >
+              <div className="text-center leading-tight">
+                <div
+                  className="text-muted-foreground font-semibold uppercase tracking-wide"
+                  style={{ fontSize: 'clamp(8px, 1.6vw, 12px)' }}
+                >
+                  Score
                 </div>
-                <div className="h-6 sm:h-8 w-px bg-border hidden sm:block" />
-                <div className="text-center hidden md:block">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">ELAPSED</div>
-                  <div className="text-base sm:text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
-                </div>
-                <div className="h-6 sm:h-8 w-px bg-border" />
-                <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">TIME</div>
-                  <div className={`text-lg sm:text-3xl font-bold ${
-                    timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
-                  }`}>{formatTime(timeRemaining)}</div>
+                <div
+                  className="font-bold text-primary tabular-nums"
+                  style={{ fontSize: 'clamp(16px, 4.2vw, 30px)' }}
+                >
+                  {score}
                 </div>
               </div>
-            </Card>
-            
-            <div className="hidden sm:block">
-              <CoinDisplay coins={coins} />
+
+              <div className="self-stretch w-px bg-border hidden xs:block sm:block" />
+
+              <div className="text-center leading-tight hidden sm:block">
+                <div
+                  className="text-muted-foreground font-semibold uppercase tracking-wide"
+                  style={{ fontSize: 'clamp(8px, 1.6vw, 12px)' }}
+                >
+                  Elapsed
+                </div>
+                <div
+                  className="font-bold text-accent tabular-nums"
+                  style={{ fontSize: 'clamp(14px, 3.4vw, 24px)' }}
+                >
+                  {formatTime(getElapsedTime())}
+                </div>
+              </div>
+
+              <div className="self-stretch w-px bg-border hidden sm:block" />
+
+              <div className="text-center leading-tight">
+                <div
+                  className="text-muted-foreground font-semibold uppercase tracking-wide"
+                  style={{ fontSize: 'clamp(8px, 1.6vw, 12px)' }}
+                >
+                  Time
+                </div>
+                <div
+                  className={`font-bold tabular-nums ${
+                    timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
+                  }`}
+                  style={{ fontSize: 'clamp(16px, 4.2vw, 30px)' }}
+                >
+                  {formatTime(timeRemaining)}
+                </div>
+              </div>
+
+              <div className="self-stretch w-px bg-border" />
+
+              <div className="text-center leading-tight">
+                <div
+                  className="text-muted-foreground font-semibold uppercase tracking-wide"
+                  style={{ fontSize: 'clamp(8px, 1.6vw, 12px)' }}
+                >
+                  Coins
+                </div>
+                <div
+                  className="font-bold text-yellow-500 tabular-nums"
+                  style={{ fontSize: 'clamp(16px, 4.2vw, 30px)' }}
+                >
+                  {coins}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Instructions strip — full-width row under the HUD, fluidly sized.
+              Shows the active control hint based on game phase. */}
+          <div
+            className="basis-full flex justify-center pointer-events-none"
+            style={{ marginTop: 'clamp(2px, 0.8vw, 8px)' }}
+          >
+            <div
+              className="bg-card/70 backdrop-blur-sm border border-border/60 rounded-full text-foreground/80 font-medium text-center"
+              style={{
+                padding: 'clamp(2px, 0.8vw, 6px) clamp(8px, 2.4vw, 18px)',
+                fontSize: 'clamp(10px, 2.2vw, 13px)',
+                maxWidth: 'min(92vw, 560px)',
+              }}
+            >
+              {ballPhase === 'ready'
+                ? 'Use ← → to aim · Hold the throw button to charge · Release to launch'
+                : ballPhase === 'flying'
+                ? 'Ball in flight — dodge cars and bikes!'
+                : ballPhase === 'hit'
+                ? 'Nice hit! Watch the bounce…'
+                : ballPhase === 'bouncing'
+                ? 'Bouncing back to you'
+                : 'Blocked! Resetting…'}
             </div>
           </div>
         </div>
