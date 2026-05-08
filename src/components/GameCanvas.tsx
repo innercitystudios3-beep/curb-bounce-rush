@@ -293,11 +293,13 @@ export const GameCanvas = ({
   useEffect(() => {
     // Move obstacles
     const moveInterval = setInterval(() => {
-      setObstacles((prev) =>
-        prev
+      setObstacles((prev) => {
+        const next = prev
           .map((obs) => ({ ...obs, position: obs.position + obs.speed }))
-          .filter((obs) => obs.position < 110)
-      );
+          .filter((obs) => obs.position < 110);
+        obstaclesRef.current = next;
+        return next;
+      });
     }, 50);
 
     return () => clearInterval(moveInterval);
