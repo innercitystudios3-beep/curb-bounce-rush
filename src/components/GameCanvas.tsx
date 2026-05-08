@@ -86,6 +86,8 @@ export const GameCanvas = ({
   const [gameEnded, setGameEnded] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
+  const obstaclesRef = useRef<Obstacle[]>([]);
+  const flightCancelRef = useRef(false);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
   const chargeSoundIntervalRef = useRef<number | null>(null);
@@ -291,11 +293,13 @@ export const GameCanvas = ({
   useEffect(() => {
     // Move obstacles
     const moveInterval = setInterval(() => {
-      setObstacles((prev) =>
-        prev
+      setObstacles((prev) => {
+        const next = prev
           .map((obs) => ({ ...obs, position: obs.position + obs.speed }))
-          .filter((obs) => obs.position < 110)
-      );
+          .filter((obs) => obs.position < 110);
+        obstaclesRef.current = next;
+        return next;
+      });
     }, 50);
 
     return () => clearInterval(moveInterval);
@@ -437,13 +441,34 @@ export const GameCanvas = ({
     // Play throw sound
     soundManager.playThrow();
 
-    // Check for collision with obstacles during flight
-    const checkObstacleCollision = () => {
-      return obstacles.some(obs => {
-        const obstacleCenterX = obs.position + (obs.type === 'car' ? 10 : 6); // Approximate center
-        const ballX = ballHorizontalPosition;
-        const distance = Math.abs(obstacleCenterX - ballX);
-        return distance < 8; // Collision threshold
+    // Continuous collision check during flight.
+    // Ball Y is in screen-bottom-% (8 = near sidewalk, 58 = far curb).
+    // Each obstacle's vertical position is derived the same way as in JSX:
+    //   road container: bottom 14%, height 44%
+    //   obstacle bottomPct (within road) = 6 + lane*70
+    //   → global bottom% = 14 + (6 + lane*70) * 0.44
+    const ROAD_BOTTOM = 14;
+    const ROAD_HEIGHT = 44;
+    const checkObstacleCollision = (ballX: number, ballY: number) => {
+      return obstaclesRef.current.some((obs) => {
+        const lane = ((obs.id * 37) % 100) / 100;
+        const depthScale = 0.45 + lane * 0.75;
+        const obsBottomGlobal =
+          ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
+
+        // Hitbox sized roughly to the rendered car/bike, scaled by depth.
+        const halfWidthPct = (obs.type === 'car' ? 7 : 4.5) * depthScale;
+        const heightPct = (obs.type === 'car' ? 6 : 4) * depthScale;
+
+        const obsCenterX = obs.position; // left:%; rendered with translateX(-50%) so position == center
+        const dx = Math.abs(obsCenterX - ballX);
+        const withinX = dx < halfWidthPct + 2; // +2% ball radius
+
+        const ballAboveObs = ballY > obsBottomGlobal + heightPct + 2;
+        const ballBelowObs = ballY < obsBottomGlobal - 2;
+        const withinY = !ballAboveObs && !ballBelowObs;
+
+        return withinX && withinY;
       });
     };
 
@@ -458,10 +483,12 @@ export const GameCanvas = ({
     setBallPhase('flying');
     const startX = ballHorizontalPosition;
     setBallPosition({ x: startX, y: REST_Y });
+    flightCancelRef.current = false;
 
     // Animate ball arc with horizontal movement based on angle
     const startTime = Date.now();
     const animateBallFlight = () => {
+      if (flightCancelRef.current) return;
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / flightDuration, 1);
 
@@ -475,6 +502,29 @@ export const GameCanvas = ({
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
 
+      // Continuous collision check throughout the entire arc
+      if (checkObstacleCollision(currentX, arcY)) {
+        flightCancelRef.current = true;
+        setBallPhase('missed');
+        soundManager.playFail();
+        setConsecutiveHits(0);
+        toast.error("Hit an obstacle!", {
+          description: "Ball was blocked! Streak reset!",
+        });
+        // Ball drops where it was hit, then resets
+        setTimeout(() => {
+          setBallPosition({ x: currentX, y: Math.max(REST_Y, arcY - 10) });
+        }, 100);
+        setTimeout(() => {
+          setBallPosition({ x: targetHorizontalPosition, y: REST_Y });
+          setBallPhase('ready');
+          setIsBallFlying(false);
+          setIsThrowing(false);
+          setPower(0);
+        }, 700);
+        return;
+      }
+
       if (progress < 1) {
         requestAnimationFrame(animateBallFlight);
       }
@@ -483,30 +533,12 @@ export const GameCanvas = ({
     requestAnimationFrame(animateBallFlight);
 
     setTimeout(() => {
-      // Check for collision mid-flight
-      if (checkObstacleCollision()) {
-        // Ball hits obstacle
-        setBallPhase('missed');
-        soundManager.playFail();
-        setConsecutiveHits(0);
-        toast.error("Hit an obstacle!", {
-          description: "Ball was blocked! Streak reset!",
-        });
-
-        setTimeout(() => {
-          setBallPosition({ x: targetHorizontalPosition, y: REST_Y });
-          setBallPhase('ready');
-          setIsBallFlying(false);
-          setIsThrowing(false);
-          setPower(0);
-        }, 600);
-        return;
-      }
-
+      if (flightCancelRef.current) return;
       setBallPosition({ x: targetHorizontalPosition, y: CURB_Y }); // Land on far curb
     }, flightDuration * 0.6);
 
     setTimeout(() => {
+      if (flightCancelRef.current) return;
       // Phase 2: Ball hits curb (0.3s)
       setBallPhase('hit');
       soundManager.playImpact();
