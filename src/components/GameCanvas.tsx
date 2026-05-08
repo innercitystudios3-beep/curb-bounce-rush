@@ -960,7 +960,8 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Road — perspective trapezoid between the two curbs (covers ~14%–58% of screen height) */}
+        {/* Road — rectangular street running left↔right between the two curbs (~14%–58% of screen height).
+            Cars drive horizontally across, so the road reads as a side-on street, not a vanishing-point road. */}
         <div
           className={`absolute left-0 right-0 transition-colors duration-1000 ${
             gameWon ? 'bg-gradient-to-b from-purple-900 to-purple-950' : ''
@@ -969,18 +970,20 @@ export const GameCanvas = ({
             bottom: '14%',
             height: '44%',
             background: gameWon ? undefined : `hsl(var(--game-street))`,
-            clipPath: 'polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)',
+            boxShadow: 'inset 0 8px 16px rgba(0,0,0,0.35), inset 0 -8px 16px rgba(0,0,0,0.35)',
           }}
         >
-          {/* Dashed center line that vanishes toward the horizon */}
+          {/* Horizontal dashed yellow center line — runs full width across the middle of the road */}
           <div
-            className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0"
+            className="absolute left-0 right-0"
             style={{
-              width: '6%',
-              clipPath: 'polygon(45% 0%, 55% 0%, 100% 100%, 0% 100%)',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              height: '4px',
               background:
-                'repeating-linear-gradient(to bottom, hsl(45 100% 54%) 0 8%, transparent 8% 16%)',
-              opacity: 0.85,
+                'repeating-linear-gradient(to right, hsl(45 100% 54%) 0 28px, transparent 28px 56px)',
+              opacity: 0.95,
+              boxShadow: '0 0 6px rgba(0,0,0,0.4)',
             }}
           />
 
