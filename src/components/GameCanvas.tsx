@@ -538,6 +538,7 @@ export const GameCanvas = ({
     }, flightDuration * 0.6);
 
     setTimeout(() => {
+      if (flightCancelRef.current) return;
       // Phase 2: Ball hits curb (0.3s)
       setBallPhase('hit');
       soundManager.playImpact();
