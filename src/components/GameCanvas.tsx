@@ -343,11 +343,24 @@ export const GameCanvas = ({
     return () => cancelAnimationFrame(rafId);
   }, [currentDifficultySettings]);
 
-  const calculateSuccess = (throwPower: number) => {
-    // Success rate increases if power is between 60-80 (sweet spot)
-    const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
-    const adjustedChance = isPerfectTiming ? Math.min(75, currentSuccessChance + 30) : currentSuccessChance;
-    
+  const calculateSuccess = (throwPower: number, aimErrorPct: number) => {
+    // Smooth power-timing accuracy: peaks at 70, gracefully falls off across 40-100.
+    // Replaces the old binary 60-80 sweet spot so small timing differences matter.
+    const powerAccuracy = Math.max(0, 1 - Math.abs(throwPower - 70) / 30);
+
+    // Aim accuracy vs the (now-smooth) moving bullseye. <6% horizontal delta = bullseye hit;
+    // we reward anything inside ~15% with a graceful curve.
+    const aimAccuracy = Math.max(0, 1 - aimErrorPct / 15);
+
+    // Combined skill score (0-1). Aim weighted slightly higher because the
+    // bullseye now glides smoothly and is more readable.
+    const skill = powerAccuracy * 0.45 + aimAccuracy * 0.55;
+
+    // Bonus up to +55% on top of the difficulty's base success chance.
+    // Skill below 0.2 gets no bonus to preserve some risk on sloppy throws.
+    const skillBonus = skill < 0.2 ? 0 : skill * 55;
+    const adjustedChance = Math.min(90, currentSuccessChance + skillBonus);
+
     return Math.random() * 100 < adjustedChance;
   };
 
