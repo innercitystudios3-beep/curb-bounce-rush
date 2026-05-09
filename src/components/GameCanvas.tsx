@@ -74,6 +74,7 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
+  const bullseyeTargetRef = useRef<BullseyeTarget>({ position: 50, direction: 1 });
   // Y is bottom-% of full screen. Resting ball sits on near sidewalk (~8%),
   // far curb is around 58%, sky/backdrop above. See scene layout.
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 8 });
@@ -310,26 +311,36 @@ export const GameCanvas = ({
   }, []);
 
   useEffect(() => {
-    // Move bullseye target slowly
-    const moveInterval = setInterval(() => {
-      setBullseyeTarget((prev) => {
-        let newPosition = prev.position + (prev.direction * currentDifficultySettings.bullseyeSpeed);
-        let newDirection = prev.direction;
-        
-        // Bounce at edges
-        if (newPosition >= 85) {
-          newPosition = 85;
-          newDirection = -1;
-        } else if (newPosition <= 15) {
-          newPosition = 15;
-          newDirection = 1;
-        }
-        
-        return { position: newPosition, direction: newDirection };
-      });
-    }, 50);
+    // Smooth bullseye motion using requestAnimationFrame + sine wave
+    // Speed scales with difficulty; movement is frame-rate independent.
+    let rafId = 0;
+    let startTime = performance.now();
+    const MIN = 15;
+    const MAX = 85;
+    const center = (MIN + MAX) / 2;
+    const amplitude = (MAX - MIN) / 2;
+    // Convert per-tick speed (~ % per 50ms) to angular frequency (rad/sec)
+    // so a full sweep matches the previous feel but is now perfectly smooth.
+    const angularSpeed = (currentDifficultySettings.bullseyeSpeed / 35) * Math.PI;
 
-    return () => clearInterval(moveInterval);
+    // Preserve current position by computing a phase offset
+    const initial = bullseyeTargetRef.current?.position ?? center;
+    const clamped = Math.max(MIN, Math.min(MAX, initial));
+    const phaseOffset = Math.asin((clamped - center) / amplitude);
+
+    const tick = (now: number) => {
+      const t = (now - startTime) / 1000;
+      const angle = phaseOffset + angularSpeed * t;
+      const position = center + amplitude * Math.sin(angle);
+      const direction: -1 | 1 = Math.cos(angle) >= 0 ? 1 : -1;
+      const next: BullseyeTarget = { position, direction };
+      bullseyeTargetRef.current = next;
+      setBullseyeTarget(next);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [currentDifficultySettings]);
 
   const calculateSuccess = (throwPower: number) => {
@@ -503,8 +514,9 @@ export const GameCanvas = ({
       const baseY = REST_Y + (CURB_Y - REST_Y) * progress;
       const arcY = baseY + Math.sin(progress * Math.PI) * peakBoost;
 
-      // Smooth horizontal movement from start to target
-      const currentX = startX + (targetHorizontalPosition - startX) * progress;
+      // Eased horizontal travel (easeOutCubic) — feels snappier and more natural
+      const easedX = 1 - Math.pow(1 - progress, 3);
+      const currentX = startX + (targetHorizontalPosition - startX) * easedX;
 
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
@@ -553,10 +565,8 @@ export const GameCanvas = ({
 
     requestAnimationFrame(animateBallFlight);
 
-    setTimeout(() => {
-      if (flightCancelRef.current) return;
-      setBallPosition({ x: targetHorizontalPosition, y: CURB_Y }); // Land on far curb
-    }, flightDuration * 0.6);
+    // Phase 2 starts when the rAF arc finishes (at flightDuration).
+    // No mid-flight snap — the rAF loop owns ball position until impact.
 
     setTimeout(() => {
       if (flightCancelRef.current) return;
