@@ -138,6 +138,26 @@ export default {
           "0%, 100%": { transform: "rotate(-3deg)" },
           "50%": { transform: "rotate(3deg)" },
         },
+        "screen-shake": {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "10%": { transform: "translate(-6px, -4px) rotate(-0.4deg)" },
+          "20%": { transform: "translate(7px, 3px) rotate(0.5deg)" },
+          "30%": { transform: "translate(-5px, 5px) rotate(-0.3deg)" },
+          "40%": { transform: "translate(6px, -3px) rotate(0.4deg)" },
+          "50%": { transform: "translate(-4px, 4px) rotate(-0.2deg)" },
+          "60%": { transform: "translate(5px, -2px) rotate(0.3deg)" },
+          "70%": { transform: "translate(-3px, 3px) rotate(-0.2deg)" },
+          "80%": { transform: "translate(2px, -2px) rotate(0.1deg)" },
+          "90%": { transform: "translate(-1px, 1px) rotate(0deg)" },
+        },
+        "heat-wave": {
+          "0%, 100%": { opacity: "0.85", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.06)" },
+        },
+        "trail-fade": {
+          "0%": { opacity: "0.9", transform: "translate(-50%, 50%) scale(1)" },
+          "100%": { opacity: "0", transform: "translate(-50%, 50%) scale(0.3)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
