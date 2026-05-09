@@ -310,26 +310,36 @@ export const GameCanvas = ({
   }, []);
 
   useEffect(() => {
-    // Move bullseye target slowly
-    const moveInterval = setInterval(() => {
-      setBullseyeTarget((prev) => {
-        let newPosition = prev.position + (prev.direction * currentDifficultySettings.bullseyeSpeed);
-        let newDirection = prev.direction;
-        
-        // Bounce at edges
-        if (newPosition >= 85) {
-          newPosition = 85;
-          newDirection = -1;
-        } else if (newPosition <= 15) {
-          newPosition = 15;
-          newDirection = 1;
-        }
-        
-        return { position: newPosition, direction: newDirection };
-      });
-    }, 50);
+    // Smooth bullseye motion using requestAnimationFrame + sine wave
+    // Speed scales with difficulty; movement is frame-rate independent.
+    let rafId = 0;
+    let startTime = performance.now();
+    const MIN = 15;
+    const MAX = 85;
+    const center = (MIN + MAX) / 2;
+    const amplitude = (MAX - MIN) / 2;
+    // Convert per-tick speed (~ % per 50ms) to angular frequency (rad/sec)
+    // so a full sweep matches the previous feel but is now perfectly smooth.
+    const angularSpeed = (currentDifficultySettings.bullseyeSpeed / 35) * Math.PI;
 
-    return () => clearInterval(moveInterval);
+    // Preserve current position by computing a phase offset
+    const initial = bullseyeTargetRef.current?.position ?? center;
+    const clamped = Math.max(MIN, Math.min(MAX, initial));
+    const phaseOffset = Math.asin((clamped - center) / amplitude);
+
+    const tick = (now: number) => {
+      const t = (now - startTime) / 1000;
+      const angle = phaseOffset + angularSpeed * t;
+      const position = center + amplitude * Math.sin(angle);
+      const direction = Math.cos(angle) >= 0 ? 1 : -1;
+      const next = { position, direction };
+      bullseyeTargetRef.current = next;
+      setBullseyeTarget(next);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [currentDifficultySettings]);
 
   const calculateSuccess = (throwPower: number) => {
