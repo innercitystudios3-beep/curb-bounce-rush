@@ -332,8 +332,8 @@ export const GameCanvas = ({
       const t = (now - startTime) / 1000;
       const angle = phaseOffset + angularSpeed * t;
       const position = center + amplitude * Math.sin(angle);
-      const direction = Math.cos(angle) >= 0 ? 1 : -1;
-      const next = { position, direction };
+      const direction: -1 | 1 = Math.cos(angle) >= 0 ? 1 : -1;
+      const next: BullseyeTarget = { position, direction };
       bullseyeTargetRef.current = next;
       setBullseyeTarget(next);
       rafId = requestAnimationFrame(tick);
