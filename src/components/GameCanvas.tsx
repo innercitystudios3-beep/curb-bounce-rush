@@ -488,6 +488,9 @@ export const GameCanvas = ({
     const startX = ballHorizontalPosition;
     setBallPosition({ x: startX, y: REST_Y });
     flightCancelRef.current = false;
+    setTrailPoints([]);
+    lastTrailTimeRef.current = 0;
+    const isFireBall = currentBall === 'fire-ball';
 
     // Animate ball arc with horizontal movement based on angle
     const startTime = Date.now();
