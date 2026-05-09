@@ -1176,11 +1176,69 @@ export const GameCanvas = ({
           }}
         >
           {getBallImageUrl(currentBall) ? (
-            <img
-              src={getBallImageUrl(currentBall)!}
-              alt="Ball"
-              className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
-            />
+            currentBall === 'fire-ball' ? (
+              // Fire ball: layered animated effects so it reads as a living flame, not a cut-out.
+              <div className="relative w-full h-full">
+                {/* Outer pulsing glow halo */}
+                <div
+                  className="absolute inset-[-30%] rounded-full animate-fire-glow pointer-events-none"
+                  style={{
+                    background:
+                      'radial-gradient(circle, rgba(255,180,40,0.55) 0%, rgba(255,69,0,0.35) 40%, transparent 70%)',
+                  }}
+                />
+                {/* Flame plume behind/above the ball, flickering */}
+                <div
+                  className="absolute left-1/2 -top-[55%] w-[110%] h-[110%] rounded-full animate-fire-flicker pointer-events-none mix-blend-screen"
+                  style={{
+                    background:
+                      'radial-gradient(ellipse at 50% 80%, #fff7c2 0%, #ffd24a 18%, #ff8a1a 45%, #ff3b00 70%, transparent 85%)',
+                    transformOrigin: 'center bottom',
+                  }}
+                />
+                {/* Secondary inner flame, faster flicker, offset phase */}
+                <div
+                  className="absolute left-1/2 -top-[35%] w-[75%] h-[90%] rounded-full animate-fire-flicker pointer-events-none mix-blend-screen"
+                  style={{
+                    background:
+                      'radial-gradient(ellipse at 50% 80%, #ffffff 0%, #fff0a0 25%, #ff9a2a 60%, transparent 85%)',
+                    animationDuration: '0.3s',
+                    transformOrigin: 'center bottom',
+                  }}
+                />
+                {/* Embers floating up */}
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span
+                    key={i}
+                    className="absolute left-1/2 top-1/4 w-1 h-1 rounded-full bg-orange-300 animate-ember-rise pointer-events-none"
+                    style={{
+                      // Stagger and randomize horizontal drift per ember
+                      animationDelay: `${i * 0.18}s`,
+                      ['--ember-x' as any]: `${(i % 2 === 0 ? 1 : -1) * (4 + i * 2)}px`,
+                      boxShadow: '0 0 6px 2px rgba(255,160,40,0.9)',
+                    } as React.CSSProperties}
+                  />
+                ))}
+                {/* The ball image itself, gently wobbling so it doesn't look static */}
+                <img
+                  src={getBallImageUrl(currentBall)!}
+                  alt="Fire Ball"
+                  className={`relative w-full h-full object-contain animate-ball-wobble ${
+                    ballPhase === 'hit' ? 'animate-pulse' : ''
+                  }`}
+                  style={{
+                    filter:
+                      'drop-shadow(0 0 8px rgba(255,140,0,0.9)) drop-shadow(0 0 16px rgba(255,69,0,0.6))',
+                  }}
+                />
+              </div>
+            ) : (
+              <img
+                src={getBallImageUrl(currentBall)!}
+                alt="Ball"
+                className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
+              />
+            )
           ) : (
             <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
               <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
