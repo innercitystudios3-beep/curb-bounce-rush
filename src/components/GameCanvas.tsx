@@ -802,7 +802,36 @@ export const GameCanvas = ({
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-slate-900">
+    <div className={`relative w-full h-screen overflow-hidden bg-slate-900 ${fireImpact ? 'animate-screen-shake' : ''}`}>
+      {/* SVG filter for heat-wave distortion (consumed by the overlay below) */}
+      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+        <defs>
+          <filter id="heat-distort">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.04" numOctaves="2" seed="3">
+              <animate attributeName="baseFrequency" dur="0.6s" values="0.018 0.04;0.04 0.08;0.018 0.04" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" scale="14" />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Heat-wave distortion overlay — only on fire-ball impact */}
+      {fireImpact && (
+        <div
+          className="absolute z-30 pointer-events-none animate-heat-wave"
+          style={{
+            left: `${ballPosition.x}%`,
+            bottom: `${ballPosition.y}%`,
+            width: '22rem',
+            height: '22rem',
+            transform: 'translate(-50%, 50%)',
+            filter: 'url(#heat-distort)',
+            background:
+              'radial-gradient(circle, rgba(255,180,40,0.18) 0%, rgba(255,80,0,0.10) 40%, transparent 70%)',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
       {/* Sky + backdrop layer (top ~42% of screen, ends at far curb at 58%) */}
       <div
         className="absolute top-0 left-0 right-0 bg-cover bg-center"
