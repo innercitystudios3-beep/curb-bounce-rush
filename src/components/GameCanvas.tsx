@@ -565,10 +565,8 @@ export const GameCanvas = ({
 
     requestAnimationFrame(animateBallFlight);
 
-    setTimeout(() => {
-      if (flightCancelRef.current) return;
-      setBallPosition({ x: targetHorizontalPosition, y: CURB_Y }); // Land on far curb
-    }, flightDuration * 0.6);
+    // Phase 2 starts when the rAF arc finishes (at flightDuration).
+    // No mid-flight snap — the rAF loop owns ball position until impact.
 
     setTimeout(() => {
       if (flightCancelRef.current) return;
