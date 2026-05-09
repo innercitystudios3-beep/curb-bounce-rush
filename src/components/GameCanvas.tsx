@@ -1204,6 +1204,30 @@ export const GameCanvas = ({
           </div>
         </div>
 
+        {/* Fire-ball trail — fading ember puffs left behind during flight */}
+        {trailPoints.map((p, i) => {
+          const intensity = (i + 1) / trailPoints.length; // older = smaller/dimmer
+          const size = 1.4 + intensity * 1.6; // rem
+          const depthScale = Math.max(0.45, 1 - (p.y - 8) / 100);
+          return (
+            <div
+              key={p.id}
+              className="absolute z-[19] pointer-events-none animate-trail-fade"
+              style={{
+                left: `${p.x}%`,
+                bottom: `${p.y}%`,
+                width: `${size}rem`,
+                height: `${size}rem`,
+                transform: `translate(-50%, 50%) scale(${depthScale})`,
+                background:
+                  'radial-gradient(circle, rgba(255,240,150,0.95) 0%, rgba(255,150,30,0.75) 35%, rgba(255,60,0,0.4) 65%, transparent 80%)',
+                mixBlendMode: 'screen',
+                filter: 'blur(2px)',
+              }}
+            />
+          );
+        })}
+
         {/* Ball — positioned by bottom-% across the full scene */}
         <div
           className={`absolute z-20 ${
