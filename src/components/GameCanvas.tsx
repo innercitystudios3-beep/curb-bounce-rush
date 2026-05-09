@@ -460,11 +460,15 @@ export const GameCanvas = ({
 
     setIsThrowing(true);
     setIsBallFlying(true);
-    const success = calculateSuccess(throwPower);
-    
+
     // Apply horizontal movement based on angle
     const angleInfluence = Math.sin(angle * Math.PI / 180) * 15;
     const targetHorizontalPosition = Math.max(10, Math.min(90, ballHorizontalPosition + angleInfluence));
+
+    // Aim error vs the live bullseye position (use the rAF ref for the freshest value).
+    const liveBullseye = bullseyeTargetRef.current?.position ?? bullseyeTarget.position;
+    const aimErrorPct = Math.abs(liveBullseye - targetHorizontalPosition);
+    const success = calculateSuccess(throwPower, aimErrorPct);
 
     // Play throw sound
     soundManager.playThrow();
