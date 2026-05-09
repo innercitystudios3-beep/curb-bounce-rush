@@ -514,8 +514,9 @@ export const GameCanvas = ({
       const baseY = REST_Y + (CURB_Y - REST_Y) * progress;
       const arcY = baseY + Math.sin(progress * Math.PI) * peakBoost;
 
-      // Smooth horizontal movement from start to target
-      const currentX = startX + (targetHorizontalPosition - startX) * progress;
+      // Eased horizontal travel (easeOutCubic) — feels snappier and more natural
+      const easedX = 1 - Math.pow(1 - progress, 3);
+      const currentX = startX + (targetHorizontalPosition - startX) * easedX;
 
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
