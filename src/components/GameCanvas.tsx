@@ -88,6 +88,10 @@ export const GameCanvas = ({
   const obstacleIdRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const flightCancelRef = useRef(false);
+  const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const trailIdRef = useRef(0);
+  const lastTrailTimeRef = useRef(0);
+  const [fireImpact, setFireImpact] = useState(false);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
   const chargeSoundIntervalRef = useRef<number | null>(null);
@@ -484,6 +488,9 @@ export const GameCanvas = ({
     const startX = ballHorizontalPosition;
     setBallPosition({ x: startX, y: REST_Y });
     flightCancelRef.current = false;
+    setTrailPoints([]);
+    lastTrailTimeRef.current = 0;
+    const isFireBall = currentBall === 'fire-ball';
 
     // Animate ball arc with horizontal movement based on angle
     const startTime = Date.now();
@@ -501,6 +508,20 @@ export const GameCanvas = ({
 
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
+
+      // Emit a fiery trail point every ~50ms while in flight (fire-ball only)
+      if (isFireBall && elapsed - lastTrailTimeRef.current > 50) {
+        lastTrailTimeRef.current = elapsed;
+        const id = trailIdRef.current++;
+        setTrailPoints((prev) => {
+          const next = [...prev, { id, x: currentX, y: arcY }];
+          return next.length > 10 ? next.slice(next.length - 10) : next;
+        });
+        // Auto-remove this point shortly after to keep the trail tight
+        setTimeout(() => {
+          setTrailPoints((prev) => prev.filter((p) => p.id !== id));
+        }, 550);
+      }
 
       // Continuous collision check throughout the entire arc
       if (checkObstacleCollision(currentX, arcY)) {
@@ -542,6 +563,14 @@ export const GameCanvas = ({
       // Phase 2: Ball hits curb (0.3s)
       setBallPhase('hit');
       soundManager.playImpact();
+
+      // Fire-ball impact: trigger screen shake + heat-wave distortion
+      if (isFireBall) {
+        setFireImpact(true);
+        setTimeout(() => setFireImpact(false), 650);
+      }
+      // Clear flight trail on impact
+      setTrailPoints([]);
       
       // Check for coin collection at target position
       const collectedCoin = curbCoins.find(
@@ -773,7 +802,36 @@ export const GameCanvas = ({
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-slate-900">
+    <div className={`relative w-full h-screen overflow-hidden bg-slate-900 ${fireImpact ? 'animate-screen-shake' : ''}`}>
+      {/* SVG filter for heat-wave distortion (consumed by the overlay below) */}
+      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+        <defs>
+          <filter id="heat-distort">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.04" numOctaves="2" seed="3">
+              <animate attributeName="baseFrequency" dur="0.6s" values="0.018 0.04;0.04 0.08;0.018 0.04" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" scale="14" />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Heat-wave distortion overlay — only on fire-ball impact */}
+      {fireImpact && (
+        <div
+          className="absolute z-30 pointer-events-none animate-heat-wave"
+          style={{
+            left: `${ballPosition.x}%`,
+            bottom: `${ballPosition.y}%`,
+            width: '22rem',
+            height: '22rem',
+            transform: 'translate(-50%, 50%)',
+            filter: 'url(#heat-distort)',
+            background:
+              'radial-gradient(circle, rgba(255,180,40,0.18) 0%, rgba(255,80,0,0.10) 40%, transparent 70%)',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
       {/* Sky + backdrop layer (top ~42% of screen, ends at far curb at 58%) */}
       <div
         className="absolute top-0 left-0 right-0 bg-cover bg-center"
@@ -1145,6 +1203,30 @@ export const GameCanvas = ({
             })}
           </div>
         </div>
+
+        {/* Fire-ball trail — fading ember puffs left behind during flight */}
+        {trailPoints.map((p, i) => {
+          const intensity = (i + 1) / trailPoints.length; // older = smaller/dimmer
+          const size = 1.4 + intensity * 1.6; // rem
+          const depthScale = Math.max(0.45, 1 - (p.y - 8) / 100);
+          return (
+            <div
+              key={p.id}
+              className="absolute z-[19] pointer-events-none animate-trail-fade"
+              style={{
+                left: `${p.x}%`,
+                bottom: `${p.y}%`,
+                width: `${size}rem`,
+                height: `${size}rem`,
+                transform: `translate(-50%, 50%) scale(${depthScale})`,
+                background:
+                  'radial-gradient(circle, rgba(255,240,150,0.95) 0%, rgba(255,150,30,0.75) 35%, rgba(255,60,0,0.4) 65%, transparent 80%)',
+                mixBlendMode: 'screen',
+                filter: 'blur(2px)',
+              }}
+            />
+          );
+        })}
 
         {/* Ball — positioned by bottom-% across the full scene */}
         <div
