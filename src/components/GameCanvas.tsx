@@ -563,6 +563,14 @@ export const GameCanvas = ({
       // Phase 2: Ball hits curb (0.3s)
       setBallPhase('hit');
       soundManager.playImpact();
+
+      // Fire-ball impact: trigger screen shake + heat-wave distortion
+      if (isFireBall) {
+        setFireImpact(true);
+        setTimeout(() => setFireImpact(false), 650);
+      }
+      // Clear flight trail on impact
+      setTrailPoints([]);
       
       // Check for coin collection at target position
       const collectedCoin = curbCoins.find(
