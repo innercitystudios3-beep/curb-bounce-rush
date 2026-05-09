@@ -509,6 +509,20 @@ export const GameCanvas = ({
       setBallPosition({ x: currentX, y: arcY });
       setBallHorizontalPosition(currentX);
 
+      // Emit a fiery trail point every ~50ms while in flight (fire-ball only)
+      if (isFireBall && elapsed - lastTrailTimeRef.current > 50) {
+        lastTrailTimeRef.current = elapsed;
+        const id = trailIdRef.current++;
+        setTrailPoints((prev) => {
+          const next = [...prev, { id, x: currentX, y: arcY }];
+          return next.length > 10 ? next.slice(next.length - 10) : next;
+        });
+        // Auto-remove this point shortly after to keep the trail tight
+        setTimeout(() => {
+          setTrailPoints((prev) => prev.filter((p) => p.id !== id));
+        }, 550);
+      }
+
       // Continuous collision check throughout the entire arc
       if (checkObstacleCollision(currentX, arcY)) {
         flightCancelRef.current = true;
