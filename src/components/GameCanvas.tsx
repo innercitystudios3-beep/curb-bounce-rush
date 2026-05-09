@@ -1233,7 +1233,11 @@ export const GameCanvas = ({
             onTouchStart={startCharging}
             onTouchEnd={releaseThrow}
             disabled={isThowing || isBallFlying}
-            className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
+            className="font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
+            style={{
+              fontSize: 'clamp(13px, 3.2vw, 18px)',
+              padding: 'clamp(10px, 2.6vw, 24px) clamp(18px, 5vw, 36px)',
+            }}
           >
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
