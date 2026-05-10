@@ -214,11 +214,11 @@ export const BackdropShop = ({
 
               return (
                 <Card key={backdrop.id} className={`overflow-hidden ${current ? 'ring-2 ring-primary' : ''}`}>
-                  <div className="aspect-video relative overflow-hidden bg-muted">
+                  <div className="aspect-video relative overflow-hidden bg-muted p-2">
                     <img
                       src={backdrop.imageUrl}
                       alt={backdrop.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                     {current && (
                       <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
