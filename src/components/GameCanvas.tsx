@@ -1217,6 +1217,22 @@ export const GameCanvas = ({
             boxShadow: 'inset 0 8px 16px rgba(0,0,0,0.35), inset 0 -8px 16px rgba(0,0,0,0.35)',
           }}
         >
+          {/* Subtle dashed lane dividers — between the 3 traffic lanes, with parallax scroll */}
+          {[28.75, 52.75].map((bottomPct) => (
+            <div
+              key={bottomPct}
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{
+                bottom: `${bottomPct}%`,
+                height: '2px',
+                background:
+                  'repeating-linear-gradient(to right, rgba(255,255,255,0.55) 0 18px, transparent 18px 40px)',
+                opacity: 0.5,
+                animation: 'lane-scroll 1.6s linear infinite',
+              }}
+            />
+          ))}
+
           {/* Horizontal dashed yellow center line — runs full width across the middle of the road */}
           <div
             className="absolute left-0 right-0"
@@ -1230,6 +1246,36 @@ export const GameCanvas = ({
               boxShadow: '0 0 6px rgba(0,0,0,0.4)',
             }}
           />
+
+          {/* Pre-spawn lane warnings — flashing arrow on the left edge of the lane vehicles enter from */}
+          {laneWarnings.map((laneIdx) => {
+            const laneFrac = [0.15, 0.5, 0.85][laneIdx];
+            const bottomPct = 6 + laneFrac * 70;
+            return (
+              <div
+                key={`warn-${laneIdx}`}
+                className="absolute pointer-events-none animate-pulse"
+                style={{
+                  left: '4px',
+                  bottom: `${bottomPct}%`,
+                  transform: 'translateY(50%)',
+                  zIndex: 5,
+                }}
+              >
+                <div
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold text-white"
+                  style={{
+                    background: 'rgba(220, 38, 38, 0.85)',
+                    boxShadow: '0 0 12px rgba(255,80,80,0.9)',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>⚠</span>
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>▶</span>
+                </div>
+              </div>
+            );
+          })}
 
           {/* Animated sprite vehicles — driven by obstacles state, single rAF loop */}
           <RoadVehicleLayer ref={roadVehicleLayerRef} obstaclesRef={obstaclesRef} />
