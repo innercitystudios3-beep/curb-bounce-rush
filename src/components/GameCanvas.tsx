@@ -245,33 +245,75 @@ export const GameCanvas = ({
   };
 
   useEffect(() => {
-    // Spawn obstacles randomly
-    const spawnInterval = setInterval(() => {
-      if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
-        // Weighted vehicle pick: cars common, scooters frequent, bus rarer
-        const r = Math.random();
-        const type: VehicleType = r < 0.5 ? "car" : r < 0.85 ? "scooter" : "bus";
-        const id = obstacleIdRef.current++;
-        const lane = ((id * 37) % 100) / 100;
-        // Bus & car move slower, scooter faster — feels right for road traffic
-        const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
-        const newObstacle: Obstacle = {
-          id,
-          type,
-          position: -10,
-          speed:
-            (currentDifficultySettings.obstacleSpeed.min +
-              Math.random() *
-                (currentDifficultySettings.obstacleSpeed.max -
-                  currentDifficultySettings.obstacleSpeed.min)) *
-            speedScale,
-          lane,
-        };
-        setObstacles((prev) => [...prev, newObstacle]);
-      }
-    }, 2000);
+    // Wave-based traffic scheduler.
+    // - 3 fixed lanes for clean visual layering (no overlap with sprite layer)
+    // - Each wave releases 1–3 vehicles across distinct lanes, staggered in time
+    // - Per-lane minimum gap prevents vehicles from spawning on top of each other
+    const LANES = [0.15, 0.5, 0.85];
+    const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
+    const minLaneGapMs = 1100; // floor; actual gap also depends on speed
+    let waveTimer: ReturnType<typeof setTimeout>;
+    let stopped = false;
 
-    return () => clearInterval(spawnInterval);
+    const pickType = (): VehicleType => {
+      const r = Math.random();
+      return r < 0.5 ? "car" : r < 0.85 ? "scooter" : "bus";
+    };
+
+    const spawnOne = (laneIdx: number) => {
+      const now = performance.now();
+      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs) return;
+      const type = pickType();
+      const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
+      const speed =
+        (currentDifficultySettings.obstacleSpeed.min +
+          Math.random() *
+            (currentDifficultySettings.obstacleSpeed.max -
+              currentDifficultySettings.obstacleSpeed.min)) *
+        speedScale;
+      const id = obstacleIdRef.current++;
+      lastSpawnAtByLane[laneIdx] = now;
+      const newObstacle: Obstacle = {
+        id,
+        type,
+        position: -10,
+        speed,
+        lane: LANES[laneIdx],
+      };
+      setObstacles((prev) => [...prev, newObstacle]);
+    };
+
+    // Cadence between waves driven by difficulty (higher chance → faster waves)
+    const waveBaseMs = Math.round(2600 - currentDifficultySettings.obstacleSpawnChance * 1400);
+
+    const scheduleNextWave = () => {
+      if (stopped) return;
+      const jitter = 0.75 + Math.random() * 0.6; // 0.75x – 1.35x
+      waveTimer = setTimeout(runWave, waveBaseMs * jitter);
+    };
+
+    const runWave = () => {
+      if (stopped) return;
+      // Wave size weighted toward 1–2 vehicles
+      const r = Math.random();
+      const waveSize = r < 0.5 ? 1 : r < 0.9 ? 2 : 3;
+      // Pick distinct lanes for this wave
+      const laneOrder = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, waveSize);
+      laneOrder.forEach((laneIdx, i) => {
+        // Stagger within the wave so vehicles don't all enter at the same x
+        const delay = i * (260 + Math.random() * 220);
+        setTimeout(() => spawnOne(laneIdx), delay);
+      });
+      scheduleNextWave();
+    };
+
+    // Kick off first wave shortly after mount
+    waveTimer = setTimeout(runWave, 600);
+
+    return () => {
+      stopped = true;
+      clearTimeout(waveTimer);
+    };
   }, [currentDifficultySettings]);
 
   useEffect(() => {
