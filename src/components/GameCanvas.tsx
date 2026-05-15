@@ -571,7 +571,9 @@ export const GameCanvas = ({
       }
 
       // Continuous collision check throughout the entire arc
-      if (checkObstacleCollision(currentX, arcY)) {
+      const hitObs = checkObstacleCollision(currentX, arcY);
+      if (hitObs) {
+        roadVehicleLayerRef.current?.hit(hitObs.id);
         flightCancelRef.current = true;
         setBallPhase('missed');
         soundManager.playFail();
