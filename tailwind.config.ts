@@ -178,6 +178,7 @@ export default {
         "screen-shake": "screen-shake 0.6s cubic-bezier(.36,.07,.19,.97) both",
         "heat-wave": "heat-wave 0.45s ease-in-out infinite",
         "trail-fade": "trail-fade 0.55s ease-out forwards",
+        "lane-scroll": "lane-scroll 1.6s linear infinite",
       },
     },
   },
