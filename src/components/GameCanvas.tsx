@@ -1232,19 +1232,6 @@ export const GameCanvas = ({
             />
           ))}
 
-          {/* Horizontal dashed yellow center line — runs full width across the middle of the road */}
-          <div
-            className="absolute left-0 right-0"
-            style={{
-              top: '50%',
-              transform: 'translateY(-50%)',
-              height: '4px',
-              background:
-                'repeating-linear-gradient(to right, hsl(45 100% 54%) 0 28px, transparent 28px 56px)',
-              opacity: 0.95,
-              boxShadow: '0 0 6px rgba(0,0,0,0.4)',
-            }}
-          />
 
           {/* Pre-spawn lane warnings — flashing arrow on the left edge of the lane vehicles enter from */}
           {laneWarnings.map((laneIdx) => {
