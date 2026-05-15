@@ -12,12 +12,16 @@ import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
+import { RoadVehicleLayer, RoadVehicleLayerHandle, RoadObstacle } from "./RoadVehicleLayer";
+
+type VehicleType = "scooter" | "car" | "bus";
 
 interface Obstacle {
   id: number;
-  type: "car" | "bike";
+  type: VehicleType;
   position: number;
   speed: number;
+  lane: number; // 0..1 stable lane assignment
 }
 
 interface CurbCoin {
