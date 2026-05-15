@@ -247,12 +247,24 @@ export const GameCanvas = ({
     // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
       if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
+        // Weighted vehicle pick: cars common, scooters frequent, bus rarer
+        const r = Math.random();
+        const type: VehicleType = r < 0.5 ? "car" : r < 0.85 ? "scooter" : "bus";
+        const id = obstacleIdRef.current++;
+        const lane = ((id * 37) % 100) / 100;
+        // Bus & car move slower, scooter faster — feels right for road traffic
+        const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
         const newObstacle: Obstacle = {
-          id: obstacleIdRef.current++,
-          type: Math.random() > 0.5 ? "car" : "bike",
+          id,
+          type,
           position: -10,
-          speed: currentDifficultySettings.obstacleSpeed.min + 
-                 Math.random() * (currentDifficultySettings.obstacleSpeed.max - currentDifficultySettings.obstacleSpeed.min),
+          speed:
+            (currentDifficultySettings.obstacleSpeed.min +
+              Math.random() *
+                (currentDifficultySettings.obstacleSpeed.max -
+                  currentDifficultySettings.obstacleSpeed.min)) *
+            speedScale,
+          lane,
         };
         setObstacles((prev) => [...prev, newObstacle]);
       }
