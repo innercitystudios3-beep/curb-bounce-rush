@@ -158,6 +158,10 @@ export default {
           "0%": { opacity: "0.9", transform: "translate(-50%, 50%) scale(1)" },
           "100%": { opacity: "0", transform: "translate(-50%, 50%) scale(0.3)" },
         },
+        "lane-scroll": {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "-58px 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
