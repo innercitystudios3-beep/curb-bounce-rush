@@ -293,6 +293,7 @@ export const GameCanvas = ({
       waveTimer = setTimeout(runWave, waveBaseMs * jitter);
     };
 
+    const WARNING_LEAD_MS = 700;
     const runWave = () => {
       if (stopped) return;
       // Wave size weighted toward 1–2 vehicles
@@ -303,7 +304,16 @@ export const GameCanvas = ({
       laneOrder.forEach((laneIdx, i) => {
         // Stagger within the wave so vehicles don't all enter at the same x
         const delay = i * (260 + Math.random() * 220);
-        setTimeout(() => spawnOne(laneIdx), delay);
+        // Pre-spawn warning indicator
+        setTimeout(() => {
+          if (stopped) return;
+          setLaneWarnings((prev) => (prev.includes(laneIdx) ? prev : [...prev, laneIdx]));
+        }, delay);
+        setTimeout(() => {
+          if (stopped) return;
+          setLaneWarnings((prev) => prev.filter((l) => l !== laneIdx));
+          spawnOne(laneIdx);
+        }, delay + WARNING_LEAD_MS);
       });
       scheduleNextWave();
     };
