@@ -1091,7 +1091,7 @@ export const GameCanvas = ({
               {ballPhase === 'ready'
                 ? 'Use ← → to aim · Hold the throw button to charge · Release to launch'
                 : ballPhase === 'flying'
-                ? 'Ball in flight — dodge cars and bikes!'
+                ? 'Ball in flight — dodge cars, scooters and buses!'
                 : ballPhase === 'hit'
                 ? 'Nice hit! Watch the bounce…'
                 : ballPhase === 'bouncing'
