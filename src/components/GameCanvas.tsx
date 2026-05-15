@@ -104,6 +104,7 @@ export const GameCanvas = ({
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [swipeAngle, setSwipeAngle] = useState(0);
+  const [laneWarnings, setLaneWarnings] = useState<number[]>([]); // active laneIdx warnings (0,1,2)
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
   
