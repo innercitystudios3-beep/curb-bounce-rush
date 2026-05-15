@@ -1221,14 +1221,13 @@ export const GameCanvas = ({
           {[28.75, 52.75].map((bottomPct) => (
             <div
               key={bottomPct}
-              className="absolute left-0 right-0 pointer-events-none"
+              className="absolute left-0 right-0 pointer-events-none animate-lane-scroll"
               style={{
                 bottom: `${bottomPct}%`,
                 height: '2px',
                 background:
                   'repeating-linear-gradient(to right, rgba(255,255,255,0.55) 0 18px, transparent 18px 40px)',
                 opacity: 0.5,
-                animation: 'lane-scroll 1.6s linear infinite',
               }}
             />
           ))}
