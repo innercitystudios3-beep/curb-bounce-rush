@@ -1178,33 +1178,8 @@ export const GameCanvas = ({
             }}
           />
 
-          {/* Obstacles — drive across the road, scaled by depth (their bottom %) */}
-          {obstacles.map((obs) => {
-            // Stable per-obstacle lane based on id (0..1 → top..bottom of road band)
-            const lane = ((obs.id * 37) % 100) / 100; // pseudo-random but stable
-            const depthScale = 0.45 + lane * 0.75; // far = small, near = bigger
-            const bottomPct = 6 + lane * 70; // within the road band
-            return (
-              <div
-                key={obs.id}
-                className="absolute transition-all"
-                style={{
-                  left: `${obs.position}%`,
-                  bottom: `${bottomPct}%`,
-                  transform: `translateX(-50%) scale(${depthScale})`,
-                  transformOrigin: 'center bottom',
-                }}
-              >
-                <div
-                  className={`${
-                    obs.type === 'car'
-                      ? 'w-24 h-12 bg-gradient-to-r from-red-600 to-red-800'
-                      : 'w-14 h-8 bg-gradient-to-r from-blue-600 to-blue-800'
-                  } rounded-lg shadow-lg`}
-                />
-              </div>
-            );
-          })}
+          {/* Animated sprite vehicles — driven by obstacles state, single rAF loop */}
+          <RoadVehicleLayer ref={roadVehicleLayerRef} obstaclesRef={obstaclesRef} />
         </div>
 
         {/* Near curb strip — the curb the player is standing on */}
