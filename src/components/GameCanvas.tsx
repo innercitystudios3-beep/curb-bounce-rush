@@ -12,12 +12,16 @@ import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
+import { RoadVehicleLayer, RoadVehicleLayerHandle, RoadObstacle } from "./RoadVehicleLayer";
+
+type VehicleType = "scooter" | "car" | "bus";
 
 interface Obstacle {
   id: number;
-  type: "car" | "bike";
+  type: VehicleType;
   position: number;
   speed: number;
+  lane: number; // 0..1 stable lane assignment
 }
 
 interface CurbCoin {
@@ -88,6 +92,7 @@ export const GameCanvas = ({
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
+  const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const trailIdRef = useRef(0);
@@ -243,12 +248,24 @@ export const GameCanvas = ({
     // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
       if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
+        // Weighted vehicle pick: cars common, scooters frequent, bus rarer
+        const r = Math.random();
+        const type: VehicleType = r < 0.5 ? "car" : r < 0.85 ? "scooter" : "bus";
+        const id = obstacleIdRef.current++;
+        const lane = ((id * 37) % 100) / 100;
+        // Bus & car move slower, scooter faster — feels right for road traffic
+        const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
         const newObstacle: Obstacle = {
-          id: obstacleIdRef.current++,
-          type: Math.random() > 0.5 ? "car" : "bike",
+          id,
+          type,
           position: -10,
-          speed: currentDifficultySettings.obstacleSpeed.min + 
-                 Math.random() * (currentDifficultySettings.obstacleSpeed.max - currentDifficultySettings.obstacleSpeed.min),
+          speed:
+            (currentDifficultySettings.obstacleSpeed.min +
+              Math.random() *
+                (currentDifficultySettings.obstacleSpeed.max -
+                  currentDifficultySettings.obstacleSpeed.min)) *
+            speedScale,
+          lane,
         };
         setObstacles((prev) => [...prev, newObstacle]);
       }
@@ -482,19 +499,21 @@ export const GameCanvas = ({
     const ROAD_BOTTOM = 14;
     const ROAD_HEIGHT = 44;
     const checkObstacleCollision = (ballX: number, ballY: number) => {
-      return obstaclesRef.current.some((obs) => {
-        const lane = ((obs.id * 37) % 100) / 100;
+      return obstaclesRef.current.find((obs) => {
+        const lane = obs.lane;
         const depthScale = 0.45 + lane * 0.75;
         const obsBottomGlobal =
           ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
 
-        // Hitbox sized roughly to the rendered car/bike, scaled by depth.
-        const halfWidthPct = (obs.type === 'car' ? 7 : 4.5) * depthScale;
-        const heightPct = (obs.type === 'car' ? 6 : 4) * depthScale;
+        // Hitbox sized to the rendered sprite, scaled by depth.
+        const halfWidthPct =
+          (obs.type === "bus" ? 9 : obs.type === "car" ? 7 : 4.5) * depthScale;
+        const heightPct =
+          (obs.type === "bus" ? 7 : obs.type === "car" ? 6 : 4) * depthScale;
 
-        const obsCenterX = obs.position; // left:%; rendered with translateX(-50%) so position == center
+        const obsCenterX = obs.position;
         const dx = Math.abs(obsCenterX - ballX);
-        const withinX = dx < halfWidthPct + 2; // +2% ball radius
+        const withinX = dx < halfWidthPct + 2;
 
         const ballAboveObs = ballY > obsBottomGlobal + heightPct + 2;
         const ballBelowObs = ballY < obsBottomGlobal - 2;
@@ -553,7 +572,9 @@ export const GameCanvas = ({
       }
 
       // Continuous collision check throughout the entire arc
-      if (checkObstacleCollision(currentX, arcY)) {
+      const hitObs = checkObstacleCollision(currentX, arcY);
+      if (hitObs) {
+        roadVehicleLayerRef.current?.hit(hitObs.id);
         flightCancelRef.current = true;
         setBallPhase('missed');
         soundManager.playFail();
@@ -1070,7 +1091,7 @@ export const GameCanvas = ({
               {ballPhase === 'ready'
                 ? 'Use ← → to aim · Hold the throw button to charge · Release to launch'
                 : ballPhase === 'flying'
-                ? 'Ball in flight — dodge cars and bikes!'
+                ? 'Ball in flight — dodge cars, scooters and buses!'
                 : ballPhase === 'hit'
                 ? 'Nice hit! Watch the bounce…'
                 : ballPhase === 'bouncing'
@@ -1157,33 +1178,8 @@ export const GameCanvas = ({
             }}
           />
 
-          {/* Obstacles — drive across the road, scaled by depth (their bottom %) */}
-          {obstacles.map((obs) => {
-            // Stable per-obstacle lane based on id (0..1 → top..bottom of road band)
-            const lane = ((obs.id * 37) % 100) / 100; // pseudo-random but stable
-            const depthScale = 0.45 + lane * 0.75; // far = small, near = bigger
-            const bottomPct = 6 + lane * 70; // within the road band
-            return (
-              <div
-                key={obs.id}
-                className="absolute transition-all"
-                style={{
-                  left: `${obs.position}%`,
-                  bottom: `${bottomPct}%`,
-                  transform: `translateX(-50%) scale(${depthScale})`,
-                  transformOrigin: 'center bottom',
-                }}
-              >
-                <div
-                  className={`${
-                    obs.type === 'car'
-                      ? 'w-24 h-12 bg-gradient-to-r from-red-600 to-red-800'
-                      : 'w-14 h-8 bg-gradient-to-r from-blue-600 to-blue-800'
-                  } rounded-lg shadow-lg`}
-                />
-              </div>
-            );
-          })}
+          {/* Animated sprite vehicles — driven by obstacles state, single rAF loop */}
+          <RoadVehicleLayer ref={roadVehicleLayerRef} obstaclesRef={obstaclesRef} />
         </div>
 
         {/* Near curb strip — the curb the player is standing on */}
