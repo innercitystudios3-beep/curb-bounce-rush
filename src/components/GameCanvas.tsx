@@ -303,7 +303,7 @@ export const GameCanvas = ({
       const laneOrder = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, waveSize);
       laneOrder.forEach((laneIdx, i) => {
         // Stagger within the wave so vehicles don't all enter at the same x
-        const delay = i * (260 + Math.random() * 220);
+        const delay = i * (140 + Math.random() * 140);
         // Pre-spawn warning indicator
         setTimeout(() => {
           if (stopped) return;
