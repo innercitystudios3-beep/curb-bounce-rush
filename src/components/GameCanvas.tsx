@@ -861,13 +861,10 @@ export const GameCanvas = ({
       )}
       {/* Sky + backdrop layer (top ~42% of screen, ends at far curb at 58%) */}
       <div
-        className="absolute top-0 left-0 right-0 bg-no-repeat"
+        className="absolute top-0 left-0 right-0 bg-cover bg-center"
         style={{
           height: '42%',
           backgroundImage: `url(${getBackdropUrl()})`,
-          backgroundSize: 'auto 75%',
-          backgroundPosition: 'center bottom',
-          backgroundColor: 'hsl(210 70% 75%)',
         }}
       >
         {/* Soft fade into the curb */}
