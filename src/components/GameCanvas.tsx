@@ -498,19 +498,21 @@ export const GameCanvas = ({
     const ROAD_BOTTOM = 14;
     const ROAD_HEIGHT = 44;
     const checkObstacleCollision = (ballX: number, ballY: number) => {
-      return obstaclesRef.current.some((obs) => {
-        const lane = ((obs.id * 37) % 100) / 100;
+      return obstaclesRef.current.find((obs) => {
+        const lane = obs.lane;
         const depthScale = 0.45 + lane * 0.75;
         const obsBottomGlobal =
           ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
 
-        // Hitbox sized roughly to the rendered car/bike, scaled by depth.
-        const halfWidthPct = (obs.type === 'car' ? 7 : 4.5) * depthScale;
-        const heightPct = (obs.type === 'car' ? 6 : 4) * depthScale;
+        // Hitbox sized to the rendered sprite, scaled by depth.
+        const halfWidthPct =
+          (obs.type === "bus" ? 9 : obs.type === "car" ? 7 : 4.5) * depthScale;
+        const heightPct =
+          (obs.type === "bus" ? 7 : obs.type === "car" ? 6 : 4) * depthScale;
 
-        const obsCenterX = obs.position; // left:%; rendered with translateX(-50%) so position == center
+        const obsCenterX = obs.position;
         const dx = Math.abs(obsCenterX - ballX);
-        const withinX = dx < halfWidthPct + 2; // +2% ball radius
+        const withinX = dx < halfWidthPct + 2;
 
         const ballAboveObs = ballY > obsBottomGlobal + heightPct + 2;
         const ballBelowObs = ballY < obsBottomGlobal - 2;
