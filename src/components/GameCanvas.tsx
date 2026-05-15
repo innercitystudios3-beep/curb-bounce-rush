@@ -252,13 +252,13 @@ export const GameCanvas = ({
     // - Per-lane minimum gap prevents vehicles from spawning on top of each other
     const LANES = [0.15, 0.5, 0.85];
     const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
-    const minLaneGapMs = 1100; // floor; actual gap also depends on speed
+    const minLaneGapMs = 500; // floor; actual gap also depends on speed
     let waveTimer: ReturnType<typeof setTimeout>;
     let stopped = false;
 
     const pickType = (): VehicleType => {
       const r = Math.random();
-      return r < 0.5 ? "car" : r < 0.85 ? "scooter" : "bus";
+      return r < 0.55 ? "car" : r < 0.92 ? "scooter" : "bus";
     };
 
     const spawnOne = (laneIdx: number) => {
@@ -285,20 +285,20 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(2600 - currentDifficultySettings.obstacleSpawnChance * 1400);
+    const waveBaseMs = Math.round(1100 - currentDifficultySettings.obstacleSpawnChance * 600);
 
     const scheduleNextWave = () => {
       if (stopped) return;
-      const jitter = 0.75 + Math.random() * 0.6; // 0.75x – 1.35x
-      waveTimer = setTimeout(runWave, waveBaseMs * jitter);
+      const jitter = 0.7 + Math.random() * 0.5; // 0.7x – 1.2x
+      waveTimer = setTimeout(runWave, Math.max(350, waveBaseMs * jitter));
     };
 
-    const WARNING_LEAD_MS = 700;
+    const WARNING_LEAD_MS = 450;
     const runWave = () => {
       if (stopped) return;
-      // Wave size weighted toward 1–2 vehicles
+      // Wave size weighted toward 2 vehicles, often 3
       const r = Math.random();
-      const waveSize = r < 0.5 ? 1 : r < 0.9 ? 2 : 3;
+      const waveSize = r < 0.2 ? 1 : r < 0.65 ? 2 : 3;
       // Pick distinct lanes for this wave
       const laneOrder = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, waveSize);
       laneOrder.forEach((laneIdx, i) => {
