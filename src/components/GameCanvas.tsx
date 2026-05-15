@@ -92,6 +92,7 @@ export const GameCanvas = ({
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
+  const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const trailIdRef = useRef(0);
