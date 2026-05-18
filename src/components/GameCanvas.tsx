@@ -97,6 +97,10 @@ export const GameCanvas = ({
   // Timing info so the render layer can lerp between physics ticks
   const lastTickAtRef = useRef<number>(performance.now());
   const tickMsRef = useRef<number>(50);
+  // Perf-aware spawn throttle: 1 = full rate, up to ~3 = ⅓ rate under heavy load.
+  // Updated by a lightweight rAF FPS monitor below.
+  const perfMultiplierRef = useRef<number>(1);
+  const fpsRef = useRef<number>(60);
   const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -243,7 +247,36 @@ export const GameCanvas = ({
       id: particleIdRef.current++,
     }));
     setCoinParticles(newParticles);
-    
+
+  // Lightweight FPS monitor → drives perfMultiplierRef used by the spawn scheduler.
+  // 60fps → 1.0x spawn delays. 30fps → ~2.0x. 20fps → ~3.0x. Recovers smoothly.
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    let acc = 0;
+    let frames = 0;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      acc += dt;
+      frames++;
+      if (acc >= 500) {
+        const fps = (frames * 1000) / acc;
+        fpsRef.current = fps;
+        // Target 60 → 1.0; degrade linearly toward 3.0 as fps drops to 20.
+        const raw = fps >= 55 ? 1 : fps <= 20 ? 3 : 1 + ((55 - fps) / 35) * 2;
+        // EMA smoothing so brief hiccups don't yo-yo the spawn rate
+        perfMultiplierRef.current = perfMultiplierRef.current * 0.7 + raw * 0.3;
+        acc = 0;
+        frames = 0;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+
     // Clear particles after animation
     setTimeout(() => {
       setCoinParticles([]);
@@ -288,9 +321,12 @@ export const GameCanvas = ({
 
     const spawnOne = (laneIdx: number) => {
       const now = performance.now();
-      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs) return;
-      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS) return;
-      if (obstaclesRef.current.length >= MAX_CONCURRENT) return;
+      const perf = perfMultiplierRef.current;
+      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs * perf) return;
+      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS * perf) return;
+      // Tighten the concurrent cap when the device is struggling
+      const cap = perf >= 1.8 ? 2 : MAX_CONCURRENT;
+      if (obstaclesRef.current.length >= cap) return;
       if (!laneIsClear(laneIdx)) return;
       const type = pickType();
       const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
@@ -322,7 +358,8 @@ export const GameCanvas = ({
     const scheduleNextWave = () => {
       if (stopped) return;
       const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
-      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter));
+      const perf = perfMultiplierRef.current;
+      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter * perf));
     };
 
     const WARNING_LEAD_MS = 350;
