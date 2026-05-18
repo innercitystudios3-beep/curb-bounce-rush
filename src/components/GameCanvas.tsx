@@ -292,9 +292,12 @@ export const GameCanvas = ({
 
     const spawnOne = (laneIdx: number) => {
       const now = performance.now();
-      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs) return;
-      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS) return;
-      if (obstaclesRef.current.length >= MAX_CONCURRENT) return;
+      const perf = perfMultiplierRef.current;
+      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs * perf) return;
+      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS * perf) return;
+      // Tighten the concurrent cap when the device is struggling
+      const cap = perf >= 1.8 ? 2 : MAX_CONCURRENT;
+      if (obstaclesRef.current.length >= cap) return;
       if (!laneIsClear(laneIdx)) return;
       const type = pickType();
       const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
