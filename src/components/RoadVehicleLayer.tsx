@@ -90,9 +90,17 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
           for (const obs of obstacles) {
             liveIds.add(obs.id);
             let ent = entityByIdRef.current.get(obs.id);
-            const px = (obs.position / 100) * w;
-            // bottomPct (within road) = 6 + lane*70  →  y from top
-            const bottomPct = 6 + obs.lane * 70;
+            // Interpolate between the last physics tick's prevPosition and
+            // the current quantized position so motion stays buttery smooth
+            // even though physics positions are snapped to a 0.02% grid.
+            let displayPos = obs.position;
+            if (lastTickAtRef && tickMsRef && obs.prevPosition !== undefined) {
+              const tickMs = Math.max(1, tickMsRef.current);
+              const elapsed = now - lastTickAtRef.current;
+              const t = Math.max(0, Math.min(1, elapsed / tickMs));
+              displayPos = obs.prevPosition + (obs.position - obs.prevPosition) * t;
+            }
+            const px = (displayPos / 100) * w;
             const py = h - (bottomPct / 100) * h;
             // depth-based scale matches the prior CSS scaling
             const depthScale = 0.32 + obs.lane * 0.5;
