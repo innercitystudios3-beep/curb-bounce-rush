@@ -467,13 +467,20 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
+            const newPos = quantize(obs.position + effSpeed);
+            // Fade out once past the right edge; fully gone by 110%
+            let newOpacity = obs.opacity;
+            if (newPos > 100) {
+              newOpacity = Math.max(0, 1 - (newPos - 100) / 10);
+            }
             return {
               ...obs,
               prevPosition: obs.position,
-              position: quantize(obs.position + effSpeed),
+              position: newPos,
+              opacity: newOpacity,
             };
           })
-          .filter((obs) => obs.position < 110);
+          .filter((obs) => obs.opacity > 0);
         obstaclesRef.current = next;
         lastTickAtRef.current = performance.now();
         return next;
