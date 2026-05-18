@@ -32,7 +32,7 @@ type Props = {
  * - All sprite anim runs on a single rAF loop alongside the rest of the game.
  */
 export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
-  ({ obstaclesRef, className }, ref) => {
+  ({ obstaclesRef, lastTickAtRef, tickMsRef, className }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const wrapRef = useRef<HTMLDivElement>(null);
     const managerRef = useRef<VehicleManager | null>(null);
