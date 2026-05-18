@@ -23,6 +23,7 @@ interface Obstacle {
   prevPosition: number; // position at the start of the current physics tick (for rAF lerp)
   speed: number;
   lane: number; // 0..1 stable lane assignment
+  opacity: number; // 0-1 for fade-out despawn
 }
 
 interface CurbCoin {
