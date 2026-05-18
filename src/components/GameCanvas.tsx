@@ -257,8 +257,8 @@ export const GameCanvas = ({
     const LANES = [0.15, 0.5, 0.85];
     const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
     // Bigger per-lane floor + global throttle to smooth bursty waves
-    const minLaneGapMs = 1800;
-    const MIN_GLOBAL_SPAWN_GAP_MS = 600;
+    const minLaneGapMs = 3600;
+    const MIN_GLOBAL_SPAWN_GAP_MS = 1200;
     // Cap concurrent on-screen vehicles so high-difficulty waves don't pile up
     const MAX_CONCURRENT = 3;
     // Don't spawn into a lane if the most recent vehicle there hasn't
@@ -314,12 +314,12 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(2400 - currentDifficultySettings.obstacleSpawnChance * 900);
+    const waveBaseMs = Math.round(4800 - currentDifficultySettings.obstacleSpawnChance * 1800);
 
     const scheduleNextWave = () => {
       if (stopped) return;
       const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
-      waveTimer = setTimeout(runWave, Math.max(700, waveBaseMs * jitter));
+      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter));
     };
 
     const WARNING_LEAD_MS = 350;
