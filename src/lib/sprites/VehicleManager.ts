@@ -11,19 +11,34 @@ const SHEETS: Record<VehicleKind, { src: string; cols: number; rows: number }> =
 
 const SCOOTER_STATES: StateMap = {
   idle: { frames: [0], durationMs: 500, loop: true, bobY: { amplitude: 1, periodMs: 1800 } },
-  move: { frames: [5, 6], durationMs: 150, loop: true },
-  brake: { frames: [7, 8], durationMs: 120, loop: false },
-  boost: { frames: [9], durationMs: 80, loop: true, shakeX: 1.5 },
+  // Faster pedal/wheel cycle + subtle engine bob & jitter
+  move: {
+    frames: [5, 6],
+    durationMs: 70,
+    loop: true,
+    bobY: { amplitude: 0.6, periodMs: 220 },
+    shakeX: 0.4,
+  },
+  brake: { frames: [7, 8], durationMs: 90, loop: false },
+  boost: { frames: [9], durationMs: 60, loop: true, shakeX: 1.8, bobY: { amplitude: 0.8, periodMs: 140 } },
   hit: { frames: [7], durationMs: 100, loop: false },
 };
 
 const CAR_STATES: StateMap = {
   idle: { frames: [0], durationMs: 2000, loop: true, bobY: { amplitude: 2, periodMs: 2000 } },
-  move: { frames: [1], durationMs: 120, loop: true },
-  brake: { frames: [2], durationMs: 100, loop: false },
-  reverse: { frames: [3], durationMs: 200, loop: true, driftX: 30 },
-  turnLeft: { frames: [5], durationMs: 1000, loop: false },
-  turnRight: { frames: [6], durationMs: 1000, loop: false },
+  // Only 1 dedicated move frame — simulate wheel spin & engine via micro-motion
+  move: {
+    frames: [1],
+    durationMs: 90,
+    loop: true,
+    bobY: { amplitude: 0.9, periodMs: 260 },
+    swayX: { amplitude: 0.5, periodMs: 420 },
+    shakeX: 0.35,
+  },
+  brake: { frames: [2], durationMs: 80, loop: false },
+  reverse: { frames: [3], durationMs: 160, loop: true, driftX: 30 },
+  turnLeft: { frames: [5], durationMs: 800, loop: false },
+  turnRight: { frames: [6], durationMs: 800, loop: false },
   hit: { frames: [7], durationMs: 100, loop: false },
 };
 
