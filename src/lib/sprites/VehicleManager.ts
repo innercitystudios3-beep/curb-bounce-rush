@@ -44,7 +44,15 @@ const CAR_STATES: StateMap = {
 
 const BUS_STATES: StateMap = {
   idle: { frames: [0], durationMs: 2500, loop: true, bobY: { amplitude: 1, periodMs: 2500 } },
-  move: { frames: [1], durationMs: 160, loop: true, swayX: { amplitude: 1.5, periodMs: 600 } },
+  // Heavier diesel rumble: faster sway + low-frequency bob + tiny shake
+  move: {
+    frames: [1],
+    durationMs: 110,
+    loop: true,
+    swayX: { amplitude: 1.8, periodMs: 380 },
+    bobY: { amplitude: 1.2, periodMs: 300 },
+    shakeX: 0.6,
+  },
   brake: { frames: [2], durationMs: 140, loop: false },
   doorOpen: { frames: [3], durationMs: 1000, loop: false },
   turnLeft: { frames: [5], durationMs: 1000, loop: false },
