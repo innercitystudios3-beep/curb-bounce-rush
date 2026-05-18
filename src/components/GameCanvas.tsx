@@ -464,13 +464,18 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
-            return { ...obs, position: quantize(obs.position + effSpeed) };
+            return {
+              ...obs,
+              prevPosition: obs.position,
+              position: quantize(obs.position + effSpeed),
+            };
           })
           .filter((obs) => obs.position < 110);
         obstaclesRef.current = next;
+        lastTickAtRef.current = performance.now();
         return next;
       });
-    }, 50);
+    }, tickMsRef.current);
 
     return () => clearInterval(moveInterval);
   }, []);
