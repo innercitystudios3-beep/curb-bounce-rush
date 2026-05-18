@@ -314,12 +314,12 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(2400 - currentDifficultySettings.obstacleSpawnChance * 900);
+    const waveBaseMs = Math.round(4800 - currentDifficultySettings.obstacleSpawnChance * 1800);
 
     const scheduleNextWave = () => {
       if (stopped) return;
       const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
-      waveTimer = setTimeout(runWave, Math.max(700, waveBaseMs * jitter));
+      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter));
     };
 
     const WARNING_LEAD_MS = 350;
