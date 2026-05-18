@@ -277,7 +277,9 @@ export const GameCanvas = ({
       const newObstacle: Obstacle = {
         id,
         type,
-        position: -10,
+        // Enter just inside the viewport so vehicles are visible
+        // before the player commits to a throw.
+        position: -2,
         speed,
         lane: LANES[laneIdx],
       };
