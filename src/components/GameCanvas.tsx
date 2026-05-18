@@ -422,6 +422,8 @@ export const GameCanvas = ({
     // it slows down to match (capped at 30% of its desired speed) so
     // sprites never visually overlap, even on near-simultaneous spawns.
     const MIN_GAP = 22; // % of road width between vehicle centers
+    const POS_STEP = 0.05; // quantize positions to avoid float jitter affecting separation
+    const quantize = (v: number) => Math.round(v / POS_STEP) * POS_STEP;
     const moveInterval = setInterval(() => {
       setObstacles((prev) => {
         // Group by lane and sort deterministically by position (front-most first),
@@ -457,7 +459,7 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
-            return { ...obs, position: obs.position + effSpeed };
+            return { ...obs, position: quantize(obs.position + effSpeed) };
           })
           .filter((obs) => obs.position < 110);
         obstaclesRef.current = next;
