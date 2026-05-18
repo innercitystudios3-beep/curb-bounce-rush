@@ -138,6 +138,7 @@ export type VehicleSpawn = {
   x: number;
   y: number;
   scale?: number;
+  opacity?: number;
   facing?: 1 | -1;
   initialState?: string;
 };
@@ -165,6 +166,7 @@ export class VehicleManager {
       initialState: spec.initialState ?? "idle",
       position: { x: spec.x, y: spec.y },
       scale: spec.scale ?? 0.5,
+      opacity: spec.opacity ?? 1,
       facing: spec.facing ?? 1,
       hitFx: HIT_FX[spec.kind],
     }) as SpriteEntity & { kind: VehicleKind; id: number };
