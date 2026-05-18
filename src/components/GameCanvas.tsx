@@ -367,7 +367,7 @@ export const GameCanvas = ({
       const startPos = -15 - i * 30;
       setObstacles((prev) => [
         ...prev,
-        { id, type, position: startPos, speed, lane: LANES[laneIdx] },
+        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx] },
       ]);
     });
 
