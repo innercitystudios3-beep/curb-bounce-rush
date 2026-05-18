@@ -1364,7 +1364,12 @@ export const GameCanvas = ({
           })}
 
           {/* Animated sprite vehicles — driven by obstacles state, single rAF loop */}
-          <RoadVehicleLayer ref={roadVehicleLayerRef} obstaclesRef={obstaclesRef} />
+          <RoadVehicleLayer
+            ref={roadVehicleLayerRef}
+            obstaclesRef={obstaclesRef}
+            lastTickAtRef={lastTickAtRef}
+            tickMsRef={tickMsRef}
+          />
         </div>
 
         {/* Near curb strip — the curb the player is standing on */}
