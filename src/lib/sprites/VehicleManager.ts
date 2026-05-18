@@ -25,8 +25,8 @@ const SCOOTER_STATES: StateMap = {
 };
 
 const CAR_STATES: StateMap = {
+  // 2x2 sheet → frames 0..3. Reuse frames for states not in the sheet.
   idle: { frames: [0], durationMs: 2000, loop: true, bobY: { amplitude: 2, periodMs: 2000 } },
-  // Only 1 dedicated move frame — simulate wheel spin & engine via micro-motion
   move: {
     frames: [1],
     durationMs: 90,
@@ -36,10 +36,10 @@ const CAR_STATES: StateMap = {
     shakeX: 0.35,
   },
   brake: { frames: [2], durationMs: 80, loop: false },
-  reverse: { frames: [3], durationMs: 160, loop: true, driftX: 30 },
-  turnLeft: { frames: [5], durationMs: 800, loop: false },
-  turnRight: { frames: [6], durationMs: 800, loop: false },
-  hit: { frames: [7], durationMs: 100, loop: false },
+  reverse: { frames: [2], durationMs: 160, loop: true, driftX: 30 },
+  turnLeft: { frames: [1], durationMs: 800, loop: false },
+  turnRight: { frames: [1], durationMs: 800, loop: false },
+  hit: { frames: [3], durationMs: 100, loop: false },
 };
 
 const BUS_STATES: StateMap = {
