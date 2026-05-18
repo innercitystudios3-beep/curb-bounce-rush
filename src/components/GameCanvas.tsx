@@ -252,7 +252,12 @@ export const GameCanvas = ({
     // - Per-lane minimum gap prevents vehicles from spawning on top of each other
     const LANES = [0.15, 0.5, 0.85];
     const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
-    const minLaneGapMs = 500; // floor; actual gap also depends on speed
+    // Bigger per-lane floor + global throttle to smooth bursty waves
+    const minLaneGapMs = 1100;
+    const MIN_GLOBAL_SPAWN_GAP_MS = 320;
+    // Cap concurrent on-screen vehicles so high-difficulty waves don't pile up
+    const MAX_CONCURRENT = 5;
+    let lastGlobalSpawnAt = 0;
     let waveTimer: ReturnType<typeof setTimeout>;
     let stopped = false;
 
@@ -264,6 +269,8 @@ export const GameCanvas = ({
     const spawnOne = (laneIdx: number) => {
       const now = performance.now();
       if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs) return;
+      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS) return;
+      if (obstaclesRef.current.length >= MAX_CONCURRENT) return;
       const type = pickType();
       const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
       const speed =
@@ -274,11 +281,10 @@ export const GameCanvas = ({
         speedScale;
       const id = obstacleIdRef.current++;
       lastSpawnAtByLane[laneIdx] = now;
+      lastGlobalSpawnAt = now;
       const newObstacle: Obstacle = {
         id,
         type,
-        // Enter just inside the viewport so vehicles are visible
-        // before the player commits to a throw.
         position: -2,
         speed,
         lane: LANES[laneIdx],
@@ -287,27 +293,29 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    // Halved spawn frequency — doubled the base cadence between waves
-    const waveBaseMs = Math.round(1700 - currentDifficultySettings.obstacleSpawnChance * 1000);
+    const waveBaseMs = Math.round(1900 - currentDifficultySettings.obstacleSpawnChance * 900);
 
     const scheduleNextWave = () => {
       if (stopped) return;
-      const jitter = 0.7 + Math.random() * 0.4; // 0.7x – 1.1x
-      waveTimer = setTimeout(runWave, Math.max(280, waveBaseMs * jitter));
+      const jitter = 0.8 + Math.random() * 0.5; // 0.8x – 1.3x
+      waveTimer = setTimeout(runWave, Math.max(500, waveBaseMs * jitter));
     };
 
     const WARNING_LEAD_MS = 350;
     const runWave = () => {
       if (stopped) return;
-      // Wave size weighted toward 2 vehicles, often 3
+      // Skip the wave if the road is already busy — prevents pile-ups at hard difficulty
+      if (obstaclesRef.current.length >= MAX_CONCURRENT - 1) {
+        scheduleNextWave();
+        return;
+      }
+      // Smaller waves: mostly 1, sometimes 2, rarely 3
       const r = Math.random();
-      const waveSize = r < 0.15 ? 1 : r < 0.6 ? 2 : 3;
-      // Pick distinct lanes for this wave
+      const waveSize = r < 0.55 ? 1 : r < 0.92 ? 2 : 3;
       const laneOrder = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, waveSize);
       laneOrder.forEach((laneIdx, i) => {
-        // Stagger within the wave so vehicles don't all enter at the same x
-        const delay = i * (110 + Math.random() * 120);
-        // Pre-spawn warning indicator
+        // Larger stagger between vehicles within a wave
+        const delay = i * (260 + Math.random() * 180);
         setTimeout(() => {
           if (stopped) return;
           setLaneWarnings((prev) => (prev.includes(laneIdx) ? prev : [...prev, laneIdx]));
