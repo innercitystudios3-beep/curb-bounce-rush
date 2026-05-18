@@ -97,6 +97,10 @@ export const GameCanvas = ({
   // Timing info so the render layer can lerp between physics ticks
   const lastTickAtRef = useRef<number>(performance.now());
   const tickMsRef = useRef<number>(50);
+  // Perf-aware spawn throttle: 1 = full rate, up to ~3 = ⅓ rate under heavy load.
+  // Updated by a lightweight rAF FPS monitor below.
+  const perfMultiplierRef = useRef<number>(1);
+  const fpsRef = useRef<number>(60);
   const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
