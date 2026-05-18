@@ -20,6 +20,7 @@ interface Obstacle {
   id: number;
   type: VehicleType;
   position: number;
+  prevPosition: number; // position at the start of the current physics tick (for rAF lerp)
   speed: number;
   lane: number; // 0..1 stable lane assignment
 }
@@ -92,6 +93,9 @@ export const GameCanvas = ({
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
+  // Timing info so the render layer can lerp between physics ticks
+  const lastTickAtRef = useRef<number>(performance.now());
+  const tickMsRef = useRef<number>(50);
   const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -302,6 +306,7 @@ export const GameCanvas = ({
         type,
         // Start fully off-screen left so vehicles visibly drive into frame
         position: -18,
+        prevPosition: -18,
         speed,
         lane: LANES[laneIdx],
       };
@@ -365,7 +370,7 @@ export const GameCanvas = ({
       const startPos = -15 - i * 30;
       setObstacles((prev) => [
         ...prev,
-        { id, type, position: startPos, speed, lane: LANES[laneIdx] },
+        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx] },
       ]);
     });
 
@@ -459,13 +464,18 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
-            return { ...obs, position: quantize(obs.position + effSpeed) };
+            return {
+              ...obs,
+              prevPosition: obs.position,
+              position: quantize(obs.position + effSpeed),
+            };
           })
           .filter((obs) => obs.position < 110);
         obstaclesRef.current = next;
+        lastTickAtRef.current = performance.now();
         return next;
       });
-    }, 50);
+    }, tickMsRef.current);
 
     return () => clearInterval(moveInterval);
   }, []);
@@ -1354,7 +1364,12 @@ export const GameCanvas = ({
           })}
 
           {/* Animated sprite vehicles — driven by obstacles state, single rAF loop */}
-          <RoadVehicleLayer ref={roadVehicleLayerRef} obstaclesRef={obstaclesRef} />
+          <RoadVehicleLayer
+            ref={roadVehicleLayerRef}
+            obstaclesRef={obstaclesRef}
+            lastTickAtRef={lastTickAtRef}
+            tickMsRef={tickMsRef}
+          />
         </div>
 
         {/* Near curb strip — the curb the player is standing on */}
