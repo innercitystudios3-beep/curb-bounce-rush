@@ -101,6 +101,8 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
               displayPos = obs.prevPosition + (obs.position - obs.prevPosition) * t;
             }
             const px = (displayPos / 100) * w;
+            // bottomPct (within road) = 6 + lane*70  →  y from top
+            const bottomPct = 6 + obs.lane * 70;
             const py = h - (bottomPct / 100) * h;
             // depth-based scale matches the prior CSS scaling
             const depthScale = 0.32 + obs.lane * 0.5;
