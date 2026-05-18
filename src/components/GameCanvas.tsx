@@ -424,14 +424,20 @@ export const GameCanvas = ({
     const MIN_GAP = 22; // % of road width between vehicle centers
     const moveInterval = setInterval(() => {
       setObstacles((prev) => {
-        // Group by lane and sort by position (front-most first)
+        // Group by lane and sort deterministically by position (front-most first),
+        // then by id ascending so tie-break order is stable every tick.
         const byLane = new Map<number, typeof prev>();
         for (const o of prev) {
           const arr = byLane.get(o.lane) ?? [];
           arr.push(o);
           byLane.set(o.lane, arr);
         }
-        for (const arr of byLane.values()) arr.sort((a, b) => b.position - a.position);
+        for (const arr of byLane.values()) {
+          arr.sort((a, b) => {
+            const pos = b.position - a.position;
+            return pos !== 0 ? pos : a.id - b.id;
+          });
+        }
 
         const next = prev
           .map((obs) => {
