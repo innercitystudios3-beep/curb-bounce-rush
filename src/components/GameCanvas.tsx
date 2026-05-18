@@ -277,7 +277,9 @@ export const GameCanvas = ({
       const newObstacle: Obstacle = {
         id,
         type,
-        position: -10,
+        // Enter just inside the viewport so vehicles are visible
+        // before the player commits to a throw.
+        position: -2,
         speed,
         lane: LANES[laneIdx],
       };
@@ -285,25 +287,25 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(1100 - currentDifficultySettings.obstacleSpawnChance * 600);
+    const waveBaseMs = Math.round(850 - currentDifficultySettings.obstacleSpawnChance * 500);
 
     const scheduleNextWave = () => {
       if (stopped) return;
-      const jitter = 0.7 + Math.random() * 0.5; // 0.7x – 1.2x
-      waveTimer = setTimeout(runWave, Math.max(350, waveBaseMs * jitter));
+      const jitter = 0.7 + Math.random() * 0.4; // 0.7x – 1.1x
+      waveTimer = setTimeout(runWave, Math.max(280, waveBaseMs * jitter));
     };
 
-    const WARNING_LEAD_MS = 450;
+    const WARNING_LEAD_MS = 350;
     const runWave = () => {
       if (stopped) return;
       // Wave size weighted toward 2 vehicles, often 3
       const r = Math.random();
-      const waveSize = r < 0.2 ? 1 : r < 0.65 ? 2 : 3;
+      const waveSize = r < 0.15 ? 1 : r < 0.6 ? 2 : 3;
       // Pick distinct lanes for this wave
       const laneOrder = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, waveSize);
       laneOrder.forEach((laneIdx, i) => {
         // Stagger within the wave so vehicles don't all enter at the same x
-        const delay = i * (140 + Math.random() * 140);
+        const delay = i * (110 + Math.random() * 120);
         // Pre-spawn warning indicator
         setTimeout(() => {
           if (stopped) return;
@@ -318,8 +320,30 @@ export const GameCanvas = ({
       scheduleNextWave();
     };
 
-    // Kick off first wave shortly after mount
-    waveTimer = setTimeout(runWave, 600);
+    // Pre-populate the camera view so the player always sees traffic
+    // before their first throw. Seed each lane with a vehicle already
+    // mid-screen, plus a second wave staged just off-screen.
+    const seedLanes = [0, 1, 2].sort(() => Math.random() - 0.5);
+    seedLanes.forEach((laneIdx, i) => {
+      const type = pickType();
+      const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
+      const speed =
+        (currentDifficultySettings.obstacleSpeed.min +
+          Math.random() *
+            (currentDifficultySettings.obstacleSpeed.max -
+              currentDifficultySettings.obstacleSpeed.min)) *
+        speedScale;
+      const id = obstacleIdRef.current++;
+      lastSpawnAtByLane[laneIdx] = performance.now();
+      const startPos = 20 + i * 25; // 20%, 45%, 70% across the screen
+      setObstacles((prev) => [
+        ...prev,
+        { id, type, position: startPos, speed, lane: LANES[laneIdx] },
+      ]);
+    });
+
+    // Kick off the wave scheduler almost immediately
+    waveTimer = setTimeout(runWave, 200);
 
     return () => {
       stopped = true;
