@@ -9,18 +9,20 @@ const SHEETS: Record<VehicleKind, { src: string; cols: number; rows: number }> =
   bus: { src: "/assets/sprites/cota-bus-sprite-sheet.png", cols: 4, rows: 2 },
 };
 
+// Frame timings tuned to match the 0.02%/tick position quantization grid so
+// wheel/bob cadence visually matches actual travel speed (no "spinning in
+// place" or laggy-wheel feel).
 const SCOOTER_STATES: StateMap = {
   idle: { frames: [0], durationMs: 500, loop: true, bobY: { amplitude: 1, periodMs: 1800 } },
-  // Faster pedal/wheel cycle + subtle engine bob & jitter
   move: {
     frames: [5, 6],
-    durationMs: 70,
+    durationMs: 90,
     loop: true,
-    bobY: { amplitude: 0.6, periodMs: 220 },
+    bobY: { amplitude: 0.6, periodMs: 300 },
     shakeX: 0.4,
   },
   brake: { frames: [7, 8], durationMs: 90, loop: false },
-  boost: { frames: [9], durationMs: 60, loop: true, shakeX: 1.8, bobY: { amplitude: 0.8, periodMs: 140 } },
+  boost: { frames: [9], durationMs: 60, loop: true, shakeX: 1.8, bobY: { amplitude: 0.8, periodMs: 180 } },
   hit: { frames: [7], durationMs: 100, loop: false },
 };
 
@@ -29,10 +31,10 @@ const CAR_STATES: StateMap = {
   idle: { frames: [0], durationMs: 2000, loop: true, bobY: { amplitude: 2, periodMs: 2000 } },
   move: {
     frames: [1],
-    durationMs: 90,
+    durationMs: 120,
     loop: true,
-    bobY: { amplitude: 0.9, periodMs: 260 },
-    swayX: { amplitude: 0.5, periodMs: 420 },
+    bobY: { amplitude: 0.9, periodMs: 360 },
+    swayX: { amplitude: 0.5, periodMs: 560 },
     shakeX: 0.35,
   },
   brake: { frames: [2], durationMs: 80, loop: false },
@@ -44,13 +46,12 @@ const CAR_STATES: StateMap = {
 
 const BUS_STATES: StateMap = {
   idle: { frames: [0], durationMs: 2500, loop: true, bobY: { amplitude: 1, periodMs: 2500 } },
-  // Heavier diesel rumble: faster sway + low-frequency bob + tiny shake
   move: {
     frames: [1],
-    durationMs: 110,
+    durationMs: 150,
     loop: true,
-    swayX: { amplitude: 1.8, periodMs: 380 },
-    bobY: { amplitude: 1.2, periodMs: 300 },
+    swayX: { amplitude: 1.8, periodMs: 500 },
+    bobY: { amplitude: 1.2, periodMs: 420 },
     shakeX: 0.6,
   },
   brake: { frames: [2], durationMs: 140, loop: false },
