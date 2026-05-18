@@ -329,7 +329,8 @@ export const GameCanvas = ({
     const scheduleNextWave = () => {
       if (stopped) return;
       const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
-      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter));
+      const perf = perfMultiplierRef.current;
+      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter * perf));
     };
 
     const WARNING_LEAD_MS = 350;
