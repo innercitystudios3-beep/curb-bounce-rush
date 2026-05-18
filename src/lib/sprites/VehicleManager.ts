@@ -152,9 +152,6 @@ export class VehicleManager {
   async load() {
     this.sheets = await loadAllSheets();
   }
-    );
-    for (const [k, cfg] of entries) this.sheets[k] = cfg;
-  }
 
   spawn(spec: VehicleSpawn) {
     const sheet = this.sheets[spec.kind];
