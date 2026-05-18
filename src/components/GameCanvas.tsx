@@ -247,7 +247,36 @@ export const GameCanvas = ({
       id: particleIdRef.current++,
     }));
     setCoinParticles(newParticles);
-    
+
+  // Lightweight FPS monitor → drives perfMultiplierRef used by the spawn scheduler.
+  // 60fps → 1.0x spawn delays. 30fps → ~2.0x. 20fps → ~3.0x. Recovers smoothly.
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    let acc = 0;
+    let frames = 0;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      acc += dt;
+      frames++;
+      if (acc >= 500) {
+        const fps = (frames * 1000) / acc;
+        fpsRef.current = fps;
+        // Target 60 → 1.0; degrade linearly toward 3.0 as fps drops to 20.
+        const raw = fps >= 55 ? 1 : fps <= 20 ? 3 : 1 + ((55 - fps) / 35) * 2;
+        // EMA smoothing so brief hiccups don't yo-yo the spawn rate
+        perfMultiplierRef.current = perfMultiplierRef.current * 0.7 + raw * 0.3;
+        acc = 0;
+        frames = 0;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+
     // Clear particles after animation
     setTimeout(() => {
       setCoinParticles([]);
