@@ -417,11 +417,42 @@ export const GameCanvas = ({
   }, []);
 
   useEffect(() => {
-    // Move obstacles
+    // Move obstacles with simple per-lane separation:
+    // if a vehicle gets within MIN_GAP of the one ahead in its lane,
+    // it slows down to match (capped at 30% of its desired speed) so
+    // sprites never visually overlap, even on near-simultaneous spawns.
+    const MIN_GAP = 22; // % of road width between vehicle centers
     const moveInterval = setInterval(() => {
       setObstacles((prev) => {
+        // Group by lane and sort by position (front-most first)
+        const byLane = new Map<number, typeof prev>();
+        for (const o of prev) {
+          const arr = byLane.get(o.lane) ?? [];
+          arr.push(o);
+          byLane.set(o.lane, arr);
+        }
+        for (const arr of byLane.values()) arr.sort((a, b) => b.position - a.position);
+
         const next = prev
-          .map((obs) => ({ ...obs, position: obs.position + obs.speed }))
+          .map((obs) => {
+            const lane = byLane.get(obs.lane)!;
+            const idx = lane.indexOf(obs);
+            const ahead = lane[idx - 1]; // vehicle in front of this one
+            let effSpeed = obs.speed;
+            if (ahead) {
+              const gap = ahead.position - obs.position;
+              if (gap < MIN_GAP) {
+                // Match the leader's speed; if we're still too close,
+                // slow further so the gap can recover.
+                const tightness = Math.max(0, Math.min(1, (MIN_GAP - gap) / MIN_GAP));
+                effSpeed = Math.min(obs.speed, ahead.speed) * (1 - 0.7 * tightness);
+                // Hard floor: never let two vehicles cross each other
+                const maxAllowed = Math.max(0, ahead.position - MIN_GAP - obs.position);
+                effSpeed = Math.min(effSpeed, maxAllowed);
+              }
+            }
+            return { ...obs, position: obs.position + effSpeed };
+          })
           .filter((obs) => obs.position < 110);
         obstaclesRef.current = next;
         return next;
