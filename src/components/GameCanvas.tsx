@@ -303,6 +303,7 @@ export const GameCanvas = ({
         type,
         // Start fully off-screen left so vehicles visibly drive into frame
         position: -18,
+        prevPosition: -18,
         speed,
         lane: LANES[laneIdx],
       };
