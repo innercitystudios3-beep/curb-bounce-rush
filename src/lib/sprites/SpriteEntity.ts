@@ -40,6 +40,7 @@ export class SpriteEntity {
   position: { x: number; y: number };
   velocity: { x: number; y: number } = { x: 0, y: 0 };
   scale = 1;
+  opacity = 1;
   facing: 1 | -1 = 1;
   hitFx?: HitFx;
   onHitComplete?: () => void;
@@ -56,6 +57,7 @@ export class SpriteEntity {
     initialState: string;
     position: { x: number; y: number };
     scale?: number;
+    opacity?: number;
     facing?: 1 | -1;
     hitFx?: HitFx;
   }) {
@@ -64,6 +66,7 @@ export class SpriteEntity {
     this.currentState = opts.initialState;
     this.position = opts.position;
     this.scale = opts.scale ?? 1;
+    this.opacity = opts.opacity ?? 1;
     this.facing = opts.facing ?? 1;
     this.hitFx = opts.hitFx;
   }
@@ -173,6 +176,7 @@ export class SpriteEntity {
     const h = fh * this.scale;
 
     ctx.save();
+    ctx.globalAlpha = this.opacity;
     ctx.translate(drawX, drawY);
     if (this.facing === -1) ctx.scale(-1, 1);
     ctx.imageSmoothingEnabled = true;

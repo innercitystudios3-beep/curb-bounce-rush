@@ -7,6 +7,7 @@ export type RoadObstacle = {
   position: number; // 0-100 % of road width (left edge -10..110)
   prevPosition?: number; // position at start of current physics tick (for lerp)
   lane: number;     // 0..1 (0 = far/back, 1 = near/front)
+  opacity?: number; // 0-1 fade for despawn
 };
 
 export type RoadVehicleLayerHandle = {
@@ -118,6 +119,7 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
                 x: px,
                 y: py,
                 scale: finalScale,
+                opacity: obs.opacity ?? 1,
                 facing: 1,
                 initialState: "move",
               });
@@ -126,6 +128,7 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
               ent.position.x = px;
               ent.position.y = py;
               ent.scale = finalScale;
+              ent.opacity = obs.opacity ?? 1;
               if (!ent.isHitting() && ent.currentState !== "move") ent.setState("move");
             }
           }

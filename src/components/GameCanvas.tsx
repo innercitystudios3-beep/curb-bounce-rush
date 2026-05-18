@@ -23,6 +23,7 @@ interface Obstacle {
   prevPosition: number; // position at the start of the current physics tick (for rAF lerp)
   speed: number;
   lane: number; // 0..1 stable lane assignment
+  opacity: number; // 0-1 for fade-out despawn
 }
 
 interface CurbCoin {
@@ -310,6 +311,7 @@ export const GameCanvas = ({
         prevPosition: -18,
         speed,
         lane: LANES[laneIdx],
+        opacity: 1,
       };
       setObstacles((prev) => [...prev, newObstacle]);
     };
@@ -371,7 +373,7 @@ export const GameCanvas = ({
       const startPos = -15 - i * 30;
       setObstacles((prev) => [
         ...prev,
-        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx] },
+        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx], opacity: 1 },
       ]);
     });
 
@@ -465,13 +467,20 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
+            const newPos = quantize(obs.position + effSpeed);
+            // Fade out once past the right edge; fully gone by 110%
+            let newOpacity = obs.opacity;
+            if (newPos > 100) {
+              newOpacity = Math.max(0, 1 - (newPos - 100) / 10);
+            }
             return {
               ...obs,
               prevPosition: obs.position,
-              position: quantize(obs.position + effSpeed),
+              position: newPos,
+              opacity: newOpacity,
             };
           })
-          .filter((obs) => obs.position < 110);
+          .filter((obs) => obs.opacity > 0);
         obstaclesRef.current = next;
         lastTickAtRef.current = performance.now();
         return next;
