@@ -287,7 +287,8 @@ export const GameCanvas = ({
     };
 
     // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(850 - currentDifficultySettings.obstacleSpawnChance * 500);
+    // Halved spawn frequency — doubled the base cadence between waves
+    const waveBaseMs = Math.round(1700 - currentDifficultySettings.obstacleSpawnChance * 1000);
 
     const scheduleNextWave = () => {
       if (stopped) return;
