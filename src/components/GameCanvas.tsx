@@ -459,7 +459,7 @@ export const GameCanvas = ({
                 effSpeed = Math.min(effSpeed, maxAllowed);
               }
             }
-            return { ...obs, position: obs.position + effSpeed };
+            return { ...obs, position: quantize(obs.position + effSpeed) };
           })
           .filter((obs) => obs.position < 110);
         obstaclesRef.current = next;
