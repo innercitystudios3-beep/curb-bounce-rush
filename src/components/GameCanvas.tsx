@@ -271,7 +271,8 @@ export const GameCanvas = ({
 
     const pickType = (): VehicleType => {
       const r = Math.random();
-      return r < 0.55 ? "car" : r < 0.92 ? "scooter" : "bus";
+      // Cars and scooters halved relative to buses to reduce clutter
+      return r < 0.275 ? "car" : r < 0.46 ? "scooter" : "bus";
     };
 
     const laneIsClear = (laneIdx: number) => {
