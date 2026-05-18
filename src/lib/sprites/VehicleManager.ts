@@ -5,7 +5,7 @@ export type VehicleKind = "scooter" | "car" | "bus";
 
 const SHEETS: Record<VehicleKind, { src: string; cols: number; rows: number }> = {
   scooter: { src: "/assets/sprites/scooter-sprite-sheet.png", cols: 4, rows: 3 },
-  car: { src: "/assets/sprites/car-sprite-sheet.png", cols: 4, rows: 2 },
+  car: { src: "/assets/sprites/car-sprite-sheet.png", cols: 2, rows: 2 },
   bus: { src: "/assets/sprites/cota-bus-sprite-sheet.png", cols: 4, rows: 2 },
 };
 
