@@ -5,6 +5,7 @@ export type RoadObstacle = {
   id: number;
   type: VehicleKind; // "scooter" | "car" | "bus"
   position: number; // 0-100 % of road width (left edge -10..110)
+  prevPosition?: number; // position at start of current physics tick (for lerp)
   lane: number;     // 0..1 (0 = far/back, 1 = near/front)
 };
 
@@ -14,6 +15,11 @@ export type RoadVehicleLayerHandle = {
 
 type Props = {
   obstaclesRef: React.MutableRefObject<RoadObstacle[]>;
+  // Optional timing refs from the physics tick — when provided, vehicle x
+  // positions are linearly interpolated between ticks for smooth motion
+  // despite quantized physics positions.
+  lastTickAtRef?: React.MutableRefObject<number>;
+  tickMsRef?: React.MutableRefObject<number>;
   className?: string;
 };
 
