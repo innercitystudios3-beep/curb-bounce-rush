@@ -78,9 +78,57 @@ const HIT_FX: Record<VehicleKind, HitFx> = {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
+    // Hint browser to decode off the main thread when supported
+    // (decoding="async" on HTMLImageElement)
+    (img as HTMLImageElement).decoding = "async";
+    img.onload = async () => {
+      // Force decode now so the first paint with this image is flicker-free
+      try {
+        await (img as HTMLImageElement).decode?.();
+      } catch {
+        /* decode is best-effort */
+      }
+      resolve(img);
+    };
     img.onerror = reject;
     img.src = src;
+  });
+}
+
+// Module-level singleton cache. Sprite sheets are immutable, so we decode
+// each PNG exactly once per session and share the HTMLImageElement across
+// every VehicleManager instance (no per-mount re-fetch, no flicker on
+// frequent spawns).
+let _sheetsCache: Partial<Record<VehicleKind, SpriteSheetConfig>> | null = null;
+let _sheetsPromise: Promise<Partial<Record<VehicleKind, SpriteSheetConfig>>> | null = null;
+
+function loadAllSheets() {
+  if (_sheetsCache) return Promise.resolve(_sheetsCache);
+  if (_sheetsPromise) return _sheetsPromise;
+  _sheetsPromise = (async () => {
+    const entries = await Promise.all(
+      (Object.keys(SHEETS) as VehicleKind[]).map(async (k) => {
+        const cfg = SHEETS[k];
+        const image = await loadImage(cfg.src);
+        return [k, { image, cols: cfg.cols, rows: cfg.rows }] as const;
+      }),
+    );
+    const out: Partial<Record<VehicleKind, SpriteSheetConfig>> = {};
+    for (const [k, cfg] of entries) out[k] = cfg;
+    _sheetsCache = out;
+    return out;
+  })();
+  return _sheetsPromise;
+}
+
+// Kick off preload as soon as this module is imported (well before
+// the canvas mounts), so the first wave's spawn is instant.
+if (typeof window !== "undefined") {
+  // Defer one microtask so we don't block module evaluation.
+  Promise.resolve().then(() => {
+    loadAllSheets().catch(() => {
+      /* will retry on demand from .load() */
+    });
   });
 }
 
@@ -102,12 +150,8 @@ export class VehicleManager {
   private _id = 0;
 
   async load() {
-    const entries = await Promise.all(
-      (Object.keys(SHEETS) as VehicleKind[]).map(async (k) => {
-        const cfg = SHEETS[k];
-        const image = await loadImage(cfg.src);
-        return [k, { image, cols: cfg.cols, rows: cfg.rows }] as const;
-      }),
+    this.sheets = await loadAllSheets();
+  }
     );
     for (const [k, cfg] of entries) this.sheets[k] = cfg;
   }
