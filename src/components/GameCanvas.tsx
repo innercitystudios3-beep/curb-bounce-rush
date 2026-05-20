@@ -349,12 +349,13 @@ export const GameCanvas = ({
 
     const laneIsClear = (laneIdx: number) => {
       const laneY = LANES[laneIdx];
-      // Find the trailing (lowest-position) vehicle in this lane
-      let minPos = Infinity;
+      // Strict one-per-lane: a lane is only clear if no vehicle is
+      // currently occupying it anywhere on screen. Vehicles despawn
+      // at position >= 110, so any obstacle still in the array counts.
       for (const o of obstaclesRef.current) {
-        if (o.lane === laneY && o.position < minPos) minPos = o.position;
+        if (o.lane === laneY) return false;
       }
-      return minPos === Infinity || minPos >= MIN_LANE_CLEAR_PCT;
+      return true;
     };
 
     const spawnOne = (laneIdx: number) => {
