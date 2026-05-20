@@ -327,14 +327,16 @@ export const GameCanvas = ({
     const getIntensity = () => {
       const t = Math.max(0, timeRemainingRef.current);
       const elapsed = Math.max(0, TIME_LIMIT - t);
-      // Gentle baseline ramp: 1.0 → ~1.25 over the full round
-      const gradual = 1 + Math.min(0.25, (elapsed / TIME_LIMIT) * 0.25);
-      // Final-wave surge: starts easing in at 30s, peaks ~2.4x at the buzzer.
+      const { intensityRampMax, rampSpeed, surgeStartSeconds, surgePeakCoefficient } = currentDifficultySettings;
+      // Baseline ramp: gentle rise scaled by difficulty (higher = faster + higher peak)
+      const rampMax = intensityRampMax - 1;
+      const gradual = 1 + Math.min(rampMax, (elapsed / TIME_LIMIT) * rampMax * rampSpeed);
+      // Final-wave surge: starts easing in at surgeStartSeconds, peaks at buzzer.
       // Quadratic so the build feels smooth, not stepwise.
       let surge = 1;
-      if (t < 30) {
-        const k = (30 - t) / 30; // 0 → 1 as timer drains
-        surge = 1 + k * k * 1.4;
+      if (t < surgeStartSeconds) {
+        const k = (surgeStartSeconds - t) / surgeStartSeconds; // 0 → 1 as timer drains
+        surge = 1 + k * k * surgePeakCoefficient;
       }
       return gradual * surge;
     };
