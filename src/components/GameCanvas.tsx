@@ -492,11 +492,11 @@ export const GameCanvas = ({
       scheduleNextWave();
     };
 
-    // Pre-populate the camera view so the player always sees traffic
-    // before their first throw. Seed each lane staggered OFF-SCREEN so
-    // each vehicle visibly drives in from the left edge.
-    const seedLanes = [0, 1, 2].sort(() => Math.random() - 0.5);
-    seedLanes.forEach((laneIdx, i) => {
+    // School-zone start: a single lone vehicle drives through first so the
+    // road doesn't open with a traffic jam. More vehicles arrive gradually
+    // as the wave scheduler kicks in.
+    {
+      const seedLane = Math.floor(Math.random() * 3);
       const type = pickType();
       const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
       const speed =
@@ -506,17 +506,17 @@ export const GameCanvas = ({
               currentDifficultySettings.obstacleSpeed.min)) *
         speedScale;
       const id = obstacleIdRef.current++;
-      lastSpawnAtByLane[laneIdx] = performance.now();
-      // Staggered off-screen: -15%, -45%, -75% — they drive in one by one
-      const startPos = -15 - i * 30;
+      lastSpawnAtByLane[seedLane] = performance.now();
+      const startPos = -15;
       setObstacles((prev) => [
         ...prev,
-        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx], opacity: 1 },
+        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[seedLane], opacity: 1 },
       ]);
-    });
+    }
 
-    // Kick off the wave scheduler after the seeded vehicles have entered
-    waveTimer = setTimeout(runWave, 1500);
+    // Quiet opening: wait longer before the first scheduled wave so the
+    // starter car can cross the screen alone.
+    waveTimer = setTimeout(runWave, 5500);
 
     return () => {
       stopped = true;
