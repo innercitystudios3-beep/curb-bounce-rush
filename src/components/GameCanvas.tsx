@@ -805,19 +805,28 @@ export const GameCanvas = ({
         const obsBottomGlobal =
           ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
 
-        // Hitbox sized to the rendered sprite, scaled by depth.
+        // Tightened hitbox — must overlap the rendered sprite, not just be
+        // anywhere near it. Prevents false-positive "hits" from the ball
+        // arcing through unrelated lanes' Y-bands en route to the curb.
         const halfWidthPct =
-          (obs.type === "bus" ? 9 : obs.type === "car" ? 7 : 4.5) * depthScale;
+          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 4 : 2.5) * depthScale;
         const heightPct =
-          (obs.type === "bus" ? 7 : obs.type === "car" ? 6 : 4) * depthScale;
+          (obs.type === "bus" ? 5 : obs.type === "car" ? 4 : 2.8) * depthScale;
 
         const obsCenterX = obs.position;
         const dx = Math.abs(obsCenterX - ballX);
-        const withinX = dx < halfWidthPct + 2;
+        const withinX = dx < halfWidthPct;
 
-        const ballAboveObs = ballY > obsBottomGlobal + heightPct + 2;
-        const ballBelowObs = ballY < obsBottomGlobal - 2;
-        const withinY = !ballAboveObs && !ballBelowObs;
+        // Ball must be inside the sprite's Y footprint with no padding —
+        // grazing a lane's edge doesn't count.
+        const yPad = 0.5;
+        const withinY =
+          ballY >= obsBottomGlobal + yPad &&
+          ballY <= obsBottomGlobal + heightPct - yPad;
+
+        // Off-screen vehicles never block (covers fade-out tail too)
+        if (obs.position < 0 || obs.position > 100) return false;
+        if ((obs.opacity ?? 1) < 0.5) return false;
 
         return withinX && withinY;
       });
