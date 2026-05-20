@@ -176,6 +176,9 @@ export const GameCanvas = ({
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
 
+  // Keep ref in sync so the spawn scheduler can read remaining time cheaply
+  useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
+
   // Timer countdown
   useEffect(() => {
     if (!gameStarted || gameEnded || timeRemaining <= 0) return;
