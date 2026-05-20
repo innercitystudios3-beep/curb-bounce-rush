@@ -107,10 +107,12 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
             const py = h - (bottomPct / 100) * h;
             // depth-based scale matches the prior CSS scaling
             const depthScale = 0.32 + obs.lane * 0.5;
-            // base sprite scales tuned so vehicles fit comfortably within a lane
+            // Base sprite scales tuned to each sheet's native cell size.
+            // The car sheet is now sliced correctly as 2×4 (cells are taller
+            // than wide), so it needs a smaller base scale than the bus.
             const baseScale =
               obs.type === "bus" ? 0.32 :
-              obs.type === "car" ? 0.3 : 0.26;
+              obs.type === "car" ? 0.22 : 0.26;
             const finalScale = baseScale * depthScale;
 
             if (!ent) {
