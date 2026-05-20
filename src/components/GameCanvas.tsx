@@ -436,20 +436,26 @@ export const GameCanvas = ({
       if (stopped) return;
       const intensity = getIntensity();
       const now = performance.now();
+      const opening = inOpening();
       // Expand the concurrent ceiling for the end-of-round surge so a real
-      // wave of traffic can build up; stay conservative the rest of the time.
-      const concurrentCap =
-        intensity >= 1.8 ? 5 : intensity >= 1.3 ? 4 : MAX_CONCURRENT;
+      // wave of traffic can build up; stay conservative the rest of the time;
+      // hard-cap to 1 during the opening grace period.
+      const concurrentCap = opening
+        ? 1
+        : intensity >= 1.8 ? 5 : intensity >= 1.3 ? 4 : MAX_CONCURRENT;
       // Skip the wave if the road is already busy — prevents pile-ups
       if (obstaclesRef.current.length >= concurrentCap) {
         scheduleNextWave();
         return;
       }
-      // Wave size grows with intensity: usually 1 early, 2–3 during surge
+      // Wave size grows with intensity: usually 1 early, 2–3 during surge.
+      // During the opening grace period, never release more than one.
       let waveSize = 1;
-      if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
-      else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
-      else waveSize = Math.random() < 0.85 ? 1 : 2;
+      if (!opening) {
+        if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
+        else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
+        else waveSize = Math.random() < 0.85 ? 1 : 2;
+      }
       // Per-lane cooldown filter — recently-used lanes are excluded during surge
       const cooldownMs = getSurgeCooldownMs(intensity);
       const eligibleLanes = [0, 1, 2].filter((l) => {
