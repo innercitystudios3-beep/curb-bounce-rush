@@ -5,7 +5,9 @@ export type VehicleKind = "scooter" | "car" | "bus";
 
 const SHEETS: Record<VehicleKind, { src: string; cols: number; rows: number }> = {
   scooter: { src: "/assets/sprites/scooter-sprite-sheet.png", cols: 4, rows: 3 },
-  car: { src: "/assets/sprites/car-sprite-sheet.png", cols: 2, rows: 2 },
+  // Car sheet is a 2-column × 4-row grid (8 frames). Slicing it as 2×2 was
+  // pulling two stacked cars per cell — hence the "double car" rendering.
+  car: { src: "/assets/sprites/car-sprite-sheet.png", cols: 2, rows: 4 },
   bus: { src: "/assets/sprites/cota-bus-sprite-sheet.png", cols: 4, rows: 2 },
 };
 
