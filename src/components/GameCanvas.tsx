@@ -531,7 +531,7 @@ export const GameCanvas = ({
 
     // Quiet opening: wait longer before the first scheduled wave so the
     // starter car can cross the screen alone.
-    waveTimer = setTimeout(runWave, 5500);
+    waveTimer = setTimeout(runWave, 8500);
 
     return () => {
       stopped = true;
