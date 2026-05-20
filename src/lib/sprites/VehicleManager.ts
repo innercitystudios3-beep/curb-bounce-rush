@@ -29,21 +29,23 @@ const SCOOTER_STATES: StateMap = {
 };
 
 const CAR_STATES: StateMap = {
-  // 2x2 sheet → frames 0..3. Reuse frames for states not in the sheet.
+  // 2x4 sheet → frames 0..7. Layout (row-major):
+  //   0,1: normal driving        2,3: 2 normal, 3 has brake-light glow
+  //   4,5: normal driving        6: normal,  7: crashed/hit
   idle: { frames: [0], durationMs: 2000, loop: true, bobY: { amplitude: 2, periodMs: 2000 } },
   move: {
-    frames: [1],
-    durationMs: 120,
+    frames: [0, 2, 4, 6],
+    durationMs: 140,
     loop: true,
     bobY: { amplitude: 0.9, periodMs: 360 },
     swayX: { amplitude: 0.5, periodMs: 560 },
     shakeX: 0.35,
   },
-  brake: { frames: [2], durationMs: 80, loop: false },
-  reverse: { frames: [2], durationMs: 160, loop: true, driftX: 30 },
+  brake: { frames: [3], durationMs: 80, loop: false },
+  reverse: { frames: [3], durationMs: 160, loop: true, driftX: 30 },
   turnLeft: { frames: [1], durationMs: 800, loop: false },
-  turnRight: { frames: [1], durationMs: 800, loop: false },
-  hit: { frames: [3], durationMs: 100, loop: false },
+  turnRight: { frames: [5], durationMs: 800, loop: false },
+  hit: { frames: [7], durationMs: 200, loop: false },
 };
 
 const BUS_STATES: StateMap = {
