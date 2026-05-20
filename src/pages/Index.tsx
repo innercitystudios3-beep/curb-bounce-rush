@@ -207,16 +207,21 @@ const Index = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-sky-400 to-sky-600">
+      <main
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-secondary to-primary"
+      >
         <div className="text-center">
-          <img 
-            src="/curbball-logo.png" 
-            alt="Curb Ball" 
-            className="w-full max-w-sm mx-auto drop-shadow-2xl animate-pulse"
+          <img
+            src="/curbball-logo.png"
+            alt="Curb Ball"
+            className="w-full max-w-sm mx-auto drop-shadow-2xl motion-safe:animate-pulse"
           />
-          <p className="text-white mt-4">Loading...</p>
+          <p className="text-primary-foreground mt-4 font-semibold">Loading…</p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -414,7 +419,7 @@ const Index = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-background">
+    <div className="w-full h-dvh bg-background">
       <GameCanvas 
         difficulty={difficulty} 
         onBackToDifficulty={handleBackToDifficulty}

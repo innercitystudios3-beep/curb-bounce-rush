@@ -140,7 +140,7 @@ export default function Stats() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+      <div className="min-h-dvh bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50">
           <p className="text-foreground">Loading stats...</p>
         </Card>
@@ -151,7 +151,7 @@ export default function Stats() {
   return (
     <>
       {showConfetti && <ConfettiEffect />}
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
+      <div className="min-h-dvh bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -1160,7 +1160,7 @@ export const GameCanvas = ({
   };
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden bg-slate-900 ${fireImpact ? 'animate-screen-shake' : ''}`}>
+    <div className={`relative w-full h-dvh overflow-hidden bg-background ${fireImpact ? 'animate-screen-shake' : ''}`} role="application" aria-label="Curb Ball game">
       {/* SVG filter for heat-wave distortion (consumed by the overlay below) */}
       <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
         <defs>
@@ -1203,47 +1203,53 @@ export const GameCanvas = ({
       </div>
       {/* Starting Screen */}
       {!gameStarted && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
-            <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
-            
-            <div className="space-y-4 text-white/90 mb-8">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">🎯</div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="how-to-play-title"
+          className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-secondary via-background to-primary/40 motion-safe:animate-fade-in p-4"
+        >
+          <div className="bg-card/95 backdrop-blur-lg rounded-2xl p-6 sm:p-8 max-w-md w-full border-2 border-primary/40 shadow-2xl">
+            <h1 id="how-to-play-title" className="text-3xl sm:text-4xl font-black text-foreground mb-6 text-center tracking-tight">
+              Curb Ball Challenge
+            </h1>
+
+            <ul className="space-y-4 text-foreground/90 mb-8">
+              <li className="flex items-start gap-3">
+                <div className="text-2xl" aria-hidden="true">🎯</div>
                 <div>
-                  <h3 className="font-semibold text-lg">How to Play</h3>
-                  <p className="text-sm">Click and drag to aim, then release to throw the ball at the curb</p>
+                  <h3 className="font-bold text-lg">How to Play</h3>
+                  <p className="text-sm text-muted-foreground">Click and drag to aim, then release to throw the ball at the curb</p>
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">💰</div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="text-2xl" aria-hidden="true">💰</div>
                 <div>
-                  <h3 className="font-semibold text-lg">Collect Coins</h3>
-                  <p className="text-sm">Hit the glowing coins on the curb for bonus points</p>
+                  <h3 className="font-bold text-lg">Collect Coins</h3>
+                  <p className="text-sm text-muted-foreground">Hit the glowing coins on the curb for bonus points</p>
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">⏱️</div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="text-2xl" aria-hidden="true">⏱️</div>
                 <div>
-                  <h3 className="font-semibold text-lg">Beat the Clock</h3>
-                  <p className="text-sm">Score 100 points in 3 minutes to win!</p>
+                  <h3 className="font-bold text-lg">Beat the Clock</h3>
+                  <p className="text-sm text-muted-foreground">Score 100 points in 3 minutes to win!</p>
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">🎪</div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="text-2xl" aria-hidden="true">🎪</div>
                 <div>
-                  <h3 className="font-semibold text-lg">Avoid Obstacles</h3>
-                  <p className="text-sm">Watch out for moving obstacles that block your shots</p>
+                  <h3 className="font-bold text-lg">Avoid Obstacles</h3>
+                  <p className="text-sm text-muted-foreground">Watch out for moving obstacles that block your shots</p>
                 </div>
-              </div>
-            </div>
-            
+              </li>
+            </ul>
+
             <button
               onClick={() => setGameStarted(true)}
-              className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
+              autoFocus
+              aria-label="Start game"
+              className="w-full min-h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground font-black py-4 px-8 rounded-xl text-xl motion-safe:transition-all motion-safe:hover:scale-105 active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Start Game
             </button>
@@ -1290,7 +1296,8 @@ export const GameCanvas = ({
               variant="outline"
               size="sm"
               onClick={onBackToDifficulty}
-              className="bg-card/90 backdrop-blur-sm hover:bg-card px-2 sm:px-3"
+              aria-label="Back to difficulty selection"
+              className="bg-card/90 backdrop-blur-sm hover:bg-card px-2 sm:px-3 min-h-11 active:scale-95 motion-safe:transition-transform"
               style={{ fontSize: 'clamp(10px, 2.4vw, 14px)' }}
             >
               ← Back
@@ -1305,6 +1312,9 @@ export const GameCanvas = ({
 
           {/* Right cluster: Score / Elapsed / Time / Coins — single fluid card */}
           <Card
+            role="status"
+            aria-live="polite"
+            aria-label={`Score ${score}, time remaining ${formatTime(timeRemaining)}, coins ${coins}`}
             className="bg-card/90 backdrop-blur-sm border-2 border-primary flex-shrink"
             style={{
               padding: 'clamp(4px, 1.2vw, 12px) clamp(8px, 2vw, 24px)',
