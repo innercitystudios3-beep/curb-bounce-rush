@@ -321,11 +321,20 @@ export const GameCanvas = ({
     let waveTimer: ReturnType<typeof setTimeout>;
     let stopped = false;
 
+    // Opening grace period: for the first OPENING_MS after the round starts,
+    // traffic stays minimal — a single vehicle at a time, intensity hard-capped,
+    // and longer waits between waves so the road doesn't open with a swarm.
+    const OPENING_MS = 14000;
+    const sessionStart = performance.now();
+    const inOpening = () => performance.now() - sessionStart < OPENING_MS;
+
     // Traffic intensity ramp tied to the round timer:
+    // - Opening grace: forced to baseline (1.0)
     // - Early/mid game: steady baseline with a gentle, smooth ramp
     // - Final 30s: smooth surge that peaks into a true "wave" at 0
     // Returns a multiplier >= 1 — higher = more traffic.
     const getIntensity = () => {
+      if (inOpening()) return 1;
       const t = Math.max(0, timeRemainingRef.current);
       const elapsed = Math.max(0, TIME_LIMIT - t);
       const { intensityRampMax, rampSpeed, surgeStartSeconds, surgePeakCoefficient } = currentDifficultySettings;
@@ -427,20 +436,26 @@ export const GameCanvas = ({
       if (stopped) return;
       const intensity = getIntensity();
       const now = performance.now();
+      const opening = inOpening();
       // Expand the concurrent ceiling for the end-of-round surge so a real
-      // wave of traffic can build up; stay conservative the rest of the time.
-      const concurrentCap =
-        intensity >= 1.8 ? 5 : intensity >= 1.3 ? 4 : MAX_CONCURRENT;
+      // wave of traffic can build up; stay conservative the rest of the time;
+      // hard-cap to 1 during the opening grace period.
+      const concurrentCap = opening
+        ? 1
+        : intensity >= 1.8 ? 5 : intensity >= 1.3 ? 4 : MAX_CONCURRENT;
       // Skip the wave if the road is already busy — prevents pile-ups
       if (obstaclesRef.current.length >= concurrentCap) {
         scheduleNextWave();
         return;
       }
-      // Wave size grows with intensity: usually 1 early, 2–3 during surge
+      // Wave size grows with intensity: usually 1 early, 2–3 during surge.
+      // During the opening grace period, never release more than one.
       let waveSize = 1;
-      if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
-      else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
-      else waveSize = Math.random() < 0.85 ? 1 : 2;
+      if (!opening) {
+        if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
+        else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
+        else waveSize = Math.random() < 0.85 ? 1 : 2;
+      }
       // Per-lane cooldown filter — recently-used lanes are excluded during surge
       const cooldownMs = getSurgeCooldownMs(intensity);
       const eligibleLanes = [0, 1, 2].filter((l) => {
@@ -516,7 +531,7 @@ export const GameCanvas = ({
 
     // Quiet opening: wait longer before the first scheduled wave so the
     // starter car can cross the screen alone.
-    waveTimer = setTimeout(runWave, 5500);
+    waveTimer = setTimeout(runWave, 8500);
 
     return () => {
       stopped = true;
