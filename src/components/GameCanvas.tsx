@@ -321,11 +321,20 @@ export const GameCanvas = ({
     let waveTimer: ReturnType<typeof setTimeout>;
     let stopped = false;
 
+    // Opening grace period: for the first OPENING_MS after the round starts,
+    // traffic stays minimal — a single vehicle at a time, intensity hard-capped,
+    // and longer waits between waves so the road doesn't open with a swarm.
+    const OPENING_MS = 14000;
+    const sessionStart = performance.now();
+    const inOpening = () => performance.now() - sessionStart < OPENING_MS;
+
     // Traffic intensity ramp tied to the round timer:
+    // - Opening grace: forced to baseline (1.0)
     // - Early/mid game: steady baseline with a gentle, smooth ramp
     // - Final 30s: smooth surge that peaks into a true "wave" at 0
     // Returns a multiplier >= 1 — higher = more traffic.
     const getIntensity = () => {
+      if (inOpening()) return 1;
       const t = Math.max(0, timeRemainingRef.current);
       const elapsed = Math.max(0, TIME_LIMIT - t);
       const { intensityRampMax, rampSpeed, surgeStartSeconds, surgePeakCoefficient } = currentDifficultySettings;
