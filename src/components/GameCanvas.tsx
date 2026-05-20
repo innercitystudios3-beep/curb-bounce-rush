@@ -307,9 +307,10 @@ export const GameCanvas = ({
     // - Per-lane minimum gap prevents vehicles from spawning on top of each other
     const LANES = [0.15, 0.5, 0.85];
     const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
-    // Bigger per-lane floor + global throttle to smooth bursty waves
-    const minLaneGapMs = 3600;
-    const MIN_GLOBAL_SPAWN_GAP_MS = 1200;
+    // School-zone cadence: long per-lane and global gaps so cars feel
+    // like real intermittent traffic, not a parade.
+    const minLaneGapMs = 7000;
+    const MIN_GLOBAL_SPAWN_GAP_MS = 2800;
     // Cap concurrent on-screen vehicles so high-difficulty waves don't pile up
     const MAX_CONCURRENT = 3;
     // Don't spawn into a lane if the most recent vehicle there hasn't
@@ -397,16 +398,16 @@ export const GameCanvas = ({
       setObstacles((prev) => [...prev, newObstacle]);
     };
 
-    // Cadence between waves driven by difficulty (higher chance → faster waves)
-    const waveBaseMs = Math.round(4800 - currentDifficultySettings.obstacleSpawnChance * 1800);
+    // Cadence between waves driven by difficulty (slower base for school-zone feel)
+    const waveBaseMs = Math.round(9000 - currentDifficultySettings.obstacleSpawnChance * 2500);
 
     const scheduleNextWave = () => {
       if (stopped) return;
-      const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
+      const jitter = 0.9 + Math.random() * 0.8; // 0.9x – 1.7x
       const perf = perfMultiplierRef.current;
       const intensity = getIntensity();
-      // Drop the wave-floor during the surge so the final-wave can feel dense
-      const floor = intensity >= 1.6 ? 650 : 1400;
+      // Slower floor outside the surge, lower floor when the surge kicks in.
+      const floor = intensity >= 1.6 ? 1200 : 3200;
       waveTimer = setTimeout(
         runWave,
         Math.max(floor, (waveBaseMs * jitter * perf) / intensity),
@@ -491,11 +492,11 @@ export const GameCanvas = ({
       scheduleNextWave();
     };
 
-    // Pre-populate the camera view so the player always sees traffic
-    // before their first throw. Seed each lane staggered OFF-SCREEN so
-    // each vehicle visibly drives in from the left edge.
-    const seedLanes = [0, 1, 2].sort(() => Math.random() - 0.5);
-    seedLanes.forEach((laneIdx, i) => {
+    // School-zone start: a single lone vehicle drives through first so the
+    // road doesn't open with a traffic jam. More vehicles arrive gradually
+    // as the wave scheduler kicks in.
+    {
+      const seedLane = Math.floor(Math.random() * 3);
       const type = pickType();
       const speedScale = type === "bus" ? 0.75 : type === "car" ? 1 : 1.25;
       const speed =
@@ -505,17 +506,17 @@ export const GameCanvas = ({
               currentDifficultySettings.obstacleSpeed.min)) *
         speedScale;
       const id = obstacleIdRef.current++;
-      lastSpawnAtByLane[laneIdx] = performance.now();
-      // Staggered off-screen: -15%, -45%, -75% — they drive in one by one
-      const startPos = -15 - i * 30;
+      lastSpawnAtByLane[seedLane] = performance.now();
+      const startPos = -15;
       setObstacles((prev) => [
         ...prev,
-        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[laneIdx], opacity: 1 },
+        { id, type, position: startPos, prevPosition: startPos, speed, lane: LANES[seedLane], opacity: 1 },
       ]);
-    });
+    }
 
-    // Kick off the wave scheduler after the seeded vehicles have entered
-    waveTimer = setTimeout(runWave, 1500);
+    // Quiet opening: wait longer before the first scheduled wave so the
+    // starter car can cross the screen alone.
+    waveTimer = setTimeout(runWave, 5500);
 
     return () => {
       stopped = true;

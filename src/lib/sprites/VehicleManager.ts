@@ -34,12 +34,15 @@ const CAR_STATES: StateMap = {
   //   4,5: normal driving        6: normal,  7: crashed/hit
   idle: { frames: [0], durationMs: 2000, loop: true, bobY: { amplitude: 2, periodMs: 2000 } },
   move: {
+    // Cycle through the four "clean" driving frames so the car visibly
+    // animates (subtle pose shifts) instead of looking like a static image.
     frames: [0, 2, 4, 6],
-    durationMs: 140,
+    durationMs: 180,
     loop: true,
-    bobY: { amplitude: 0.9, periodMs: 360 },
-    swayX: { amplitude: 0.5, periodMs: 560 },
-    shakeX: 0.35,
+    // Stronger bob + sway so the car reads as actually driving.
+    bobY: { amplitude: 1.4, periodMs: 320 },
+    swayX: { amplitude: 0.8, periodMs: 540 },
+    shakeX: 0.5,
   },
   brake: { frames: [3], durationMs: 80, loop: false },
   reverse: { frames: [3], durationMs: 160, loop: true, driftX: 30 },
