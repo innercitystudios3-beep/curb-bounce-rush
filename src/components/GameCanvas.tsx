@@ -413,9 +413,18 @@ export const GameCanvas = ({
     };
 
     const WARNING_LEAD_MS = 350;
+    // Per-lane surge cooldown: during the surge, a lane that just spawned
+    // must wait before being eligible again, forcing wave distribution
+    // across all three lanes instead of stacking in one.
+    const getSurgeCooldownMs = (intensity: number) => {
+      if (intensity >= 1.8) return 1400;
+      if (intensity >= 1.3) return 1000;
+      return 0; // no extra cooldown outside the surge
+    };
     const runWave = () => {
       if (stopped) return;
       const intensity = getIntensity();
+      const now = performance.now();
       // Expand the concurrent ceiling for the end-of-round surge so a real
       // wave of traffic can build up; stay conservative the rest of the time.
       const concurrentCap =
@@ -430,9 +439,17 @@ export const GameCanvas = ({
       if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
       else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
       else waveSize = Math.random() < 0.85 ? 1 : 2;
-      const laneOrder = [0, 1, 2]
-        .filter((l) => laneIsClear(l))
-        .sort(() => Math.random() - 0.5)
+      // Per-lane cooldown filter — recently-used lanes are excluded during surge
+      const cooldownMs = getSurgeCooldownMs(intensity);
+      const eligibleLanes = [0, 1, 2].filter((l) => {
+        if (!laneIsClear(l)) return false;
+        if (cooldownMs > 0 && now - lastSpawnAtByLane[l] < cooldownMs) return false;
+        return true;
+      });
+      // Prefer the least-recently-used lane first so waves spread evenly,
+      // then add randomness within remaining lanes.
+      const laneOrder = eligibleLanes
+        .sort((a, b) => lastSpawnAtByLane[a] - lastSpawnAtByLane[b])
         .slice(0, waveSize);
       laneOrder.forEach((laneIdx, i) => {
         const delay = i * (320 + Math.random() * 220);
