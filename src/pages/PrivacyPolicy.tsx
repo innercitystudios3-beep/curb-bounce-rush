@@ -6,7 +6,7 @@ const PrivacyPolicy = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted p-6">
+    <div className="min-h-dvh bg-gradient-to-b from-background to-muted p-6">
       <div className="max-w-3xl mx-auto">
         <Button
           variant="ghost"
