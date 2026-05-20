@@ -101,6 +101,8 @@ export const GameCanvas = ({
   // Updated by a lightweight rAF FPS monitor below.
   const perfMultiplierRef = useRef<number>(1);
   const fpsRef = useRef<number>(60);
+  // Mirrors timeRemaining so the spawn scheduler can read it without re-subscribing
+  const timeRemainingRef = useRef<number>(180);
   const roadVehicleLayerRef = useRef<RoadVehicleLayerHandle>(null);
   const flightCancelRef = useRef(false);
   const [trailPoints, setTrailPoints] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -173,6 +175,9 @@ export const GameCanvas = ({
     }
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
+
+  // Keep ref in sync so the spawn scheduler can read remaining time cheaply
+  useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
 
   // Timer countdown
   useEffect(() => {
@@ -303,6 +308,25 @@ export const GameCanvas = ({
     let waveTimer: ReturnType<typeof setTimeout>;
     let stopped = false;
 
+    // Traffic intensity ramp tied to the round timer:
+    // - Early/mid game: steady baseline with a gentle, smooth ramp
+    // - Final 30s: smooth surge that peaks into a true "wave" at 0
+    // Returns a multiplier >= 1 — higher = more traffic.
+    const getIntensity = () => {
+      const t = Math.max(0, timeRemainingRef.current);
+      const elapsed = Math.max(0, TIME_LIMIT - t);
+      // Gentle baseline ramp: 1.0 → ~1.25 over the full round
+      const gradual = 1 + Math.min(0.25, (elapsed / TIME_LIMIT) * 0.25);
+      // Final-wave surge: starts easing in at 30s, peaks ~2.4x at the buzzer.
+      // Quadratic so the build feels smooth, not stepwise.
+      let surge = 1;
+      if (t < 30) {
+        const k = (30 - t) / 30; // 0 → 1 as timer drains
+        surge = 1 + k * k * 1.4;
+      }
+      return gradual * surge;
+    };
+
     const pickType = (): VehicleType => {
       const r = Math.random();
       // Cars and scooters halved relative to buses to reduce clutter
@@ -322,10 +346,16 @@ export const GameCanvas = ({
     const spawnOne = (laneIdx: number) => {
       const now = performance.now();
       const perf = perfMultiplierRef.current;
-      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs * perf) return;
-      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS * perf) return;
-      // Tighten the concurrent cap when the device is struggling
-      const cap = perf >= 1.8 ? 2 : MAX_CONCURRENT;
+      const intensity = getIntensity();
+      // Higher intensity → shorter gaps (down to ~40% of baseline at peak)
+      const gapScale = Math.max(0.4, 1 / intensity);
+      if (now - lastSpawnAtByLane[laneIdx] < minLaneGapMs * perf * gapScale) return;
+      if (now - lastGlobalSpawnAt < MIN_GLOBAL_SPAWN_GAP_MS * perf * gapScale) return;
+      // Tighten the concurrent cap when the device is struggling;
+      // expand it during the end-of-round surge so a real wave can form.
+      let cap = perf >= 1.8 ? 2 : MAX_CONCURRENT;
+      if (intensity >= 1.8) cap = Math.max(cap, 5);
+      else if (intensity >= 1.3) cap = Math.max(cap, 4);
       if (obstaclesRef.current.length >= cap) return;
       if (!laneIsClear(laneIdx)) return;
       const type = pickType();
@@ -359,19 +389,33 @@ export const GameCanvas = ({
       if (stopped) return;
       const jitter = 0.9 + Math.random() * 0.6; // 0.9x – 1.5x
       const perf = perfMultiplierRef.current;
-      waveTimer = setTimeout(runWave, Math.max(1400, waveBaseMs * jitter * perf));
+      const intensity = getIntensity();
+      // Drop the wave-floor during the surge so the final-wave can feel dense
+      const floor = intensity >= 1.6 ? 650 : 1400;
+      waveTimer = setTimeout(
+        runWave,
+        Math.max(floor, (waveBaseMs * jitter * perf) / intensity),
+      );
     };
 
     const WARNING_LEAD_MS = 350;
     const runWave = () => {
       if (stopped) return;
+      const intensity = getIntensity();
+      // Expand the concurrent ceiling for the end-of-round surge so a real
+      // wave of traffic can build up; stay conservative the rest of the time.
+      const concurrentCap =
+        intensity >= 1.8 ? 5 : intensity >= 1.3 ? 4 : MAX_CONCURRENT;
       // Skip the wave if the road is already busy — prevents pile-ups
-      if (obstaclesRef.current.length >= MAX_CONCURRENT) {
+      if (obstaclesRef.current.length >= concurrentCap) {
         scheduleNextWave();
         return;
       }
-      // Almost always a single vehicle per wave; occasionally two
-      const waveSize = Math.random() < 0.8 ? 1 : 2;
+      // Wave size grows with intensity: usually 1 early, 2–3 during surge
+      let waveSize = 1;
+      if (intensity >= 1.9) waveSize = Math.random() < 0.6 ? 3 : 2;
+      else if (intensity >= 1.4) waveSize = Math.random() < 0.7 ? 2 : 1;
+      else waveSize = Math.random() < 0.85 ? 1 : 2;
       const laneOrder = [0, 1, 2]
         .filter((l) => laneIsClear(l))
         .sort(() => Math.random() - 0.5)
