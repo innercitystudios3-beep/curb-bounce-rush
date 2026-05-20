@@ -127,6 +127,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
       bullseyeSpeed: 0.5,
+      intensityRampMax: 1.12,
+      rampSpeed: 0.75,
+      surgeStartSeconds: 20,
+      surgePeakCoefficient: 0.7,
     },
     medium: {
       baseSuccessChance: 35,
@@ -134,6 +138,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
       bullseyeSpeed: 1.0,
+      intensityRampMax: 1.25,
+      rampSpeed: 1.0,
+      surgeStartSeconds: 30,
+      surgePeakCoefficient: 1.4,
     },
     hard: {
       baseSuccessChance: 25,
@@ -141,6 +149,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
       bullseyeSpeed: 1.8,
+      intensityRampMax: 1.40,
+      rampSpeed: 1.4,
+      surgeStartSeconds: 45,
+      surgePeakCoefficient: 1.8,
     }
   };
 
