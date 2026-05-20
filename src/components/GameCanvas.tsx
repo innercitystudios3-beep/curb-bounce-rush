@@ -127,6 +127,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
       bullseyeSpeed: 0.5,
+      intensityRampMax: 1.12,
+      rampSpeed: 0.75,
+      surgeStartSeconds: 20,
+      surgePeakCoefficient: 0.7,
     },
     medium: {
       baseSuccessChance: 35,
@@ -134,6 +138,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
       bullseyeSpeed: 1.0,
+      intensityRampMax: 1.25,
+      rampSpeed: 1.0,
+      surgeStartSeconds: 30,
+      surgePeakCoefficient: 1.4,
     },
     hard: {
       baseSuccessChance: 25,
@@ -141,6 +149,10 @@ export const GameCanvas = ({
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
       bullseyeSpeed: 1.8,
+      intensityRampMax: 1.40,
+      rampSpeed: 1.4,
+      surgeStartSeconds: 45,
+      surgePeakCoefficient: 1.8,
     }
   };
 
@@ -315,14 +327,16 @@ export const GameCanvas = ({
     const getIntensity = () => {
       const t = Math.max(0, timeRemainingRef.current);
       const elapsed = Math.max(0, TIME_LIMIT - t);
-      // Gentle baseline ramp: 1.0 → ~1.25 over the full round
-      const gradual = 1 + Math.min(0.25, (elapsed / TIME_LIMIT) * 0.25);
-      // Final-wave surge: starts easing in at 30s, peaks ~2.4x at the buzzer.
+      const { intensityRampMax, rampSpeed, surgeStartSeconds, surgePeakCoefficient } = currentDifficultySettings;
+      // Baseline ramp: gentle rise scaled by difficulty (higher = faster + higher peak)
+      const rampMax = intensityRampMax - 1;
+      const gradual = 1 + Math.min(rampMax, (elapsed / TIME_LIMIT) * rampMax * rampSpeed);
+      // Final-wave surge: starts easing in at surgeStartSeconds, peaks at buzzer.
       // Quadratic so the build feels smooth, not stepwise.
       let surge = 1;
-      if (t < 30) {
-        const k = (30 - t) / 30; // 0 → 1 as timer drains
-        surge = 1 + k * k * 1.4;
+      if (t < surgeStartSeconds) {
+        const k = (surgeStartSeconds - t) / surgeStartSeconds; // 0 → 1 as timer drains
+        surge = 1 + k * k * surgePeakCoefficient;
       }
       return gradual * surge;
     };
