@@ -307,9 +307,10 @@ export const GameCanvas = ({
     // - Per-lane minimum gap prevents vehicles from spawning on top of each other
     const LANES = [0.15, 0.5, 0.85];
     const lastSpawnAtByLane: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
-    // Bigger per-lane floor + global throttle to smooth bursty waves
-    const minLaneGapMs = 3600;
-    const MIN_GLOBAL_SPAWN_GAP_MS = 1200;
+    // School-zone cadence: long per-lane and global gaps so cars feel
+    // like real intermittent traffic, not a parade.
+    const minLaneGapMs = 7000;
+    const MIN_GLOBAL_SPAWN_GAP_MS = 2800;
     // Cap concurrent on-screen vehicles so high-difficulty waves don't pile up
     const MAX_CONCURRENT = 3;
     // Don't spawn into a lane if the most recent vehicle there hasn't
