@@ -447,11 +447,35 @@ export const GameCanvas = ({
         if (cooldownMs > 0 && now - lastSpawnAtByLane[l] < cooldownMs) return false;
         return true;
       });
-      // Prefer the least-recently-used lane first so waves spread evenly,
-      // then add randomness within remaining lanes.
-      const laneOrder = eligibleLanes
-        .sort((a, b) => lastSpawnAtByLane[a] - lastSpawnAtByLane[b])
-        .slice(0, waveSize);
+      // Weighted random selection: each eligible lane gets a weight
+      // proportional to how long since it last spawned. Older lanes are
+      // strongly preferred, but not guaranteed — keeps distribution even
+      // without becoming a strict, predictable round-robin.
+      const SOFTMAX_EXPONENT = 2.5; // higher = more biased toward LRU
+      const WEIGHT_FLOOR = 0.08;    // minimum chance for any eligible lane
+      const pickWeighted = (lanes: number[]) => {
+        if (lanes.length <= 1) return lanes[0];
+        const ages = lanes.map((l) => Math.max(1, now - lastSpawnAtByLane[l]));
+        const maxAge = Math.max(...ages);
+        const weights = ages.map((a) => {
+          const norm = a / maxAge; // 0..1
+          return Math.pow(norm, SOFTMAX_EXPONENT) + WEIGHT_FLOOR;
+        });
+        const total = weights.reduce((s, w) => s + w, 0);
+        let r = Math.random() * total;
+        for (let i = 0; i < lanes.length; i++) {
+          r -= weights[i];
+          if (r <= 0) return lanes[i];
+        }
+        return lanes[lanes.length - 1];
+      };
+      const laneOrder: number[] = [];
+      const pool = [...eligibleLanes];
+      while (laneOrder.length < waveSize && pool.length > 0) {
+        const picked = pickWeighted(pool);
+        laneOrder.push(picked);
+        pool.splice(pool.indexOf(picked), 1);
+      }
       laneOrder.forEach((laneIdx, i) => {
         const delay = i * (320 + Math.random() * 220);
         setTimeout(() => {
