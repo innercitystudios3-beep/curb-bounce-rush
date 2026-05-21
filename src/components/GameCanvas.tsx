@@ -659,7 +659,7 @@ export const GameCanvas = ({
     // Smooth bullseye motion using requestAnimationFrame + sine wave
     // Speed scales with difficulty; movement is frame-rate independent.
     let rafId = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
     const MIN = 15;
     const MAX = 85;
     const center = (MIN + MAX) / 2;
