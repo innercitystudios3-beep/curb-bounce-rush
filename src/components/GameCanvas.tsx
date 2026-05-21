@@ -1782,7 +1782,17 @@ export const GameCanvas = ({
               padding: 'clamp(10px, 2.6vw, 24px) clamp(18px, 5vw, 36px)',
             }}
           >
-            {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+            {ballPhase === 'flying'
+              ? "BALL IN FLIGHT…"
+              : ballPhase === 'hit'
+              ? "NICE HIT!"
+              : ballPhase === 'bouncing'
+              ? "BOUNCING BACK…"
+              : ballPhase === 'missed'
+              ? "RESETTING…"
+              : isCharging
+              ? "RELEASE!"
+              : "HOLD TO CHARGE"}
           </Button>
 
           {ballPhase === 'ready' && (
