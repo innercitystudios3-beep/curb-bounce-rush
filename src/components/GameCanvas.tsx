@@ -988,6 +988,14 @@ export const GameCanvas = ({
           soundManager.playSuccess();
           
           setTimeout(() => {
+            // The bounce-back animation has completed. Reset the control state
+            // before scoring/toasts so the button label cannot linger on
+            // "BOUNCING BACK…" after the ball has returned.
+            setBallPhase('ready');
+            setIsBallFlying(false);
+            setIsThrowing(false);
+            setPower(0);
+
             let pointsEarned = 10;
             let bullseyeBonus = 0;
             
@@ -1062,11 +1070,6 @@ export const GameCanvas = ({
 
             setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
             
-            // Reset
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
           }, BALL_BOUNCE_BACK_MS);
           
         } else {
@@ -1796,7 +1799,7 @@ export const GameCanvas = ({
                 switch (ballPhase) {
                   case 'flying': return "BALL IN FLIGHT…";
                   case 'hit':    return "NICE HIT!";
-                  case 'bouncing': return ballPosition.y <= BALL_REST_Y + 0.75 ? "READY" : "BOUNCING BACK…";
+                  case 'bouncing': return "BOUNCING BACK…";
                   case 'missed': return "RESETTING…";
                   default:
                     // ballPhase==='ready' but isBallFlying/isThowing still true:
