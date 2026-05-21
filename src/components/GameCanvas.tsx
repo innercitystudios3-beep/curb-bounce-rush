@@ -39,6 +39,10 @@ interface BullseyeTarget {
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
+const BALL_REST_Y = 8;
+const BALL_CURB_Y = 58;
+const BALL_BOUNCE_BACK_MS = 650;
+
 export type Difficulty = "easy" | "medium" | "hard";
 
 interface GameCanvasProps {
@@ -655,7 +659,7 @@ export const GameCanvas = ({
     // Smooth bullseye motion using requestAnimationFrame + sine wave
     // Speed scales with difficulty; movement is frame-rate independent.
     let rafId = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
     const MIN = 15;
     const MAX = 85;
     const center = (MIN + MAX) / 2;
@@ -860,8 +864,8 @@ export const GameCanvas = ({
     // Weak throws fly slower with a smaller arc; strong throws are faster with a higher peak.
 
     const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
-    const REST_Y = 8;       // near sidewalk (player's feet)
-    const CURB_Y = 58;      // far curb (where bullseye lives)
+    const REST_Y = BALL_REST_Y;       // near sidewalk (player's feet)
+    const CURB_Y = BALL_CURB_Y;      // far curb (where bullseye lives)
     const peakBoost = throwPower < 40 ? 8 : throwPower < 70 ? 18 : 28; // extra height above curb at apex
 
     setBallPhase('flying');
@@ -977,12 +981,21 @@ export const GameCanvas = ({
       
       setTimeout(() => {
         if (success) {
-          // Phase 3: Ball bounces back successfully (0.8s)
+          // Phase 3: Ball bounces back successfully. Keep the label in sync
+          // with the actual return duration so it cannot linger after arrival.
           setBallPhase('bouncing');
-          setBallPosition({ x: targetHorizontalPosition, y: 8 }); // Bounce back to near sidewalk
+          setBallPosition({ x: targetHorizontalPosition, y: BALL_REST_Y }); // Bounce back to near sidewalk
           soundManager.playSuccess();
           
           setTimeout(() => {
+            // The bounce-back animation has completed. Reset the control state
+            // before scoring/toasts so the button label cannot linger on
+            // "BOUNCING BACK…" after the ball has returned.
+            setBallPhase('ready');
+            setIsBallFlying(false);
+            setIsThrowing(false);
+            setPower(0);
+
             let pointsEarned = 10;
             let bullseyeBonus = 0;
             
@@ -1057,12 +1070,7 @@ export const GameCanvas = ({
 
             setTimeout(() => setShowConfetti(false), reachedMilestone ? 4000 : 3000);
             
-            // Reset
-            setBallPhase('ready');
-            setIsBallFlying(false);
-            setIsThrowing(false);
-            setPower(0);
-          }, 800);
+          }, BALL_BOUNCE_BACK_MS);
           
         } else {
           // Phase 3: Ball misses and falls (0.6s)
@@ -1636,7 +1644,7 @@ export const GameCanvas = ({
           className={`absolute z-20 ${
             ballPhase === 'flying' ? '' :
             ballPhase === 'hit' ? '' :
-            ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
+            ballPhase === 'bouncing' ? 'transition-all duration-[650ms] ease-in-out' :
             ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
             'transition-all duration-200'
           }`}
