@@ -501,6 +501,10 @@ export const GameCanvas = ({
         setTimeout(() => {
           if (stopped) return;
           setLaneWarnings((prev) => prev.filter((l) => l !== laneIdx));
+          // Strict global cap during opening grace period: re-check at the
+          // moment of spawn so queued warnings can't bypass the 1-car limit.
+          if (inOpening() && obstaclesRef.current.length >= 1) return;
+          if (!laneIsClear(laneIdx)) return;
           spawnOne(laneIdx);
         }, delay + WARNING_LEAD_MS);
       });
