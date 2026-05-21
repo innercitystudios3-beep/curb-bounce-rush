@@ -1641,7 +1641,7 @@ export const GameCanvas = ({
           className={`absolute z-20 ${
             ballPhase === 'flying' ? '' :
             ballPhase === 'hit' ? '' :
-            ballPhase === 'bouncing' ? 'transition-all duration-[800ms] ease-in-out' :
+            ballPhase === 'bouncing' ? 'transition-all duration-[650ms] ease-in-out' :
             ballPhase === 'missed' ? 'transition-all duration-[600ms] ease-in opacity-50' :
             'transition-all duration-200'
           }`}
@@ -1796,7 +1796,7 @@ export const GameCanvas = ({
                 switch (ballPhase) {
                   case 'flying': return "BALL IN FLIGHT…";
                   case 'hit':    return "NICE HIT!";
-                  case 'bouncing': return "BOUNCING BACK…";
+                  case 'bouncing': return ballPosition.y <= BALL_REST_Y + 0.75 ? "READY" : "BOUNCING BACK…";
                   case 'missed': return "RESETTING…";
                   default:
                     // ballPhase==='ready' but isBallFlying/isThowing still true:
