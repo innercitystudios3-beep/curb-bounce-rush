@@ -39,6 +39,10 @@ interface BullseyeTarget {
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
+const BALL_REST_Y = 8;
+const BALL_CURB_Y = 58;
+const BALL_BOUNCE_BACK_MS = 650;
+
 export type Difficulty = "easy" | "medium" | "hard";
 
 interface GameCanvasProps {
@@ -860,8 +864,8 @@ export const GameCanvas = ({
     // Weak throws fly slower with a smaller arc; strong throws are faster with a higher peak.
 
     const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
-    const REST_Y = 8;       // near sidewalk (player's feet)
-    const CURB_Y = 58;      // far curb (where bullseye lives)
+    const REST_Y = BALL_REST_Y;       // near sidewalk (player's feet)
+    const CURB_Y = BALL_CURB_Y;      // far curb (where bullseye lives)
     const peakBoost = throwPower < 40 ? 8 : throwPower < 70 ? 18 : 28; // extra height above curb at apex
 
     setBallPhase('flying');
