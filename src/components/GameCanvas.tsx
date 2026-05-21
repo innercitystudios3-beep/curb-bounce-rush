@@ -1782,17 +1782,30 @@ export const GameCanvas = ({
               padding: 'clamp(10px, 2.6vw, 24px) clamp(18px, 5vw, 36px)',
             }}
           >
-            {ballPhase === 'flying'
-              ? "BALL IN FLIGHT…"
-              : ballPhase === 'hit'
-              ? "NICE HIT!"
-              : ballPhase === 'bouncing'
-              ? "BOUNCING BACK…"
-              : ballPhase === 'missed'
-              ? "RESETTING…"
-              : isCharging
-              ? "RELEASE!"
-              : "HOLD TO CHARGE"}
+            {(() => {
+              // State-transition audit: once the ball has left the hand,
+              // the label MUST reflect a non-ready phase. Never show
+              // "THROWING…", "HOLD TO CHARGE", or "RELEASE!" mid-flight.
+              const ballInHand = ballPhase === 'ready' && !isBallFlying && !isThowing;
+              if (!ballInHand) {
+                switch (ballPhase) {
+                  case 'flying': return "BALL IN FLIGHT…";
+                  case 'hit':    return "NICE HIT!";
+                  case 'bouncing': return "BOUNCING BACK…";
+                  case 'missed': return "RESETTING…";
+                  default:
+                    // ballPhase==='ready' but isBallFlying/isThowing still true:
+                    // ball is in flight per physics — never claim it's chargeable.
+                    if (import.meta.env.DEV) {
+                      console.warn('[ThrowLabel audit] inconsistent state', {
+                        ballPhase, isBallFlying, isThowing, isCharging,
+                      });
+                    }
+                    return "BALL IN FLIGHT…";
+                }
+              }
+              return isCharging ? "RELEASE!" : "HOLD TO CHARGE";
+            })()}
           </Button>
 
           {ballPhase === 'ready' && (
