@@ -412,6 +412,10 @@ export const GameCanvas = ({
 
     const scheduleNextWave = () => {
       if (stopped) return;
+      // Cancel any pending wave timer so only one scheduler is ever queued.
+      // Prevents stacked timers from compounding spawn rate if scheduleNextWave
+      // is invoked from multiple paths in the same tick.
+      if (waveTimer) clearTimeout(waveTimer);
       const jitter = 0.9 + Math.random() * 0.8; // 0.9x – 1.7x
       const perf = perfMultiplierRef.current;
       const intensity = getIntensity();
