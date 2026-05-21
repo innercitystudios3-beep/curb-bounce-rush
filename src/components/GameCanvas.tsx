@@ -981,9 +981,10 @@ export const GameCanvas = ({
       
       setTimeout(() => {
         if (success) {
-          // Phase 3: Ball bounces back successfully (0.8s)
+          // Phase 3: Ball bounces back successfully. Keep the label in sync
+          // with the actual return duration so it cannot linger after arrival.
           setBallPhase('bouncing');
-          setBallPosition({ x: targetHorizontalPosition, y: 8 }); // Bounce back to near sidewalk
+          setBallPosition({ x: targetHorizontalPosition, y: BALL_REST_Y }); // Bounce back to near sidewalk
           soundManager.playSuccess();
           
           setTimeout(() => {
@@ -1066,7 +1067,7 @@ export const GameCanvas = ({
             setIsBallFlying(false);
             setIsThrowing(false);
             setPower(0);
-          }, 800);
+          }, BALL_BOUNCE_BACK_MS);
           
         } else {
           // Phase 3: Ball misses and falls (0.6s)
