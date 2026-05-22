@@ -54,11 +54,12 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
       const wrap = wrapRef.current;
       if (!canvas || !wrap) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      dprRef.current = dpr;
+      dprRef.current = Math.min(window.devicePixelRatio || 1, 2);
       const ctx = canvas.getContext("2d")!;
 
       const resize = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        dprRef.current = dpr;
         const r = wrap.getBoundingClientRect();
         sizeRef.current = { w: r.width, h: r.height };
         canvas.width = Math.max(1, Math.floor(r.width * dpr));
@@ -70,6 +71,12 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
       resize();
       const ro = new ResizeObserver(resize);
       ro.observe(wrap);
+      const onWinResize = () => resize();
+      window.addEventListener("resize", onWinResize);
+      window.addEventListener("orientationchange", onWinResize);
+      const mql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      mql.addEventListener?.("change", onWinResize);
+
 
       const mgr = new VehicleManager();
       managerRef.current = mgr;
