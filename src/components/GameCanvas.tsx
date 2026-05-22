@@ -834,27 +834,24 @@ export const GameCanvas = ({
 
         const lane = obs.lane;
         // IMPORTANT: depthScale MUST match RoadVehicleLayer's renderer
-        // (`0.32 + lane * 0.5`) so the hitbox tracks the visible sprite
-        // identically on every screen size. Previously this used a different
-        // formula, causing the ball to "hit" sprites that weren't there.
-        const depthScale = 0.32 + lane * 0.5;
+        // (`0.95 - lane * 0.55`). Lane 0 = front (largest), lane 1 = back
+        // (smallest). Keeping these in sync prevents "ball hits invisible
+        // sprite" bugs from hitbox-vs-sprite drift.
+        const depthScale = 0.95 - lane * 0.55;
         const obsBottomGlobal =
           ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
 
-        // Hitbox in % of screen, tuned to the actual rendered sprite footprint
-        // (bus is widest/tallest, scooter is narrowest). Conservative so a
-        // grazing pass doesn't register.
+        // Hitbox in % of screen, tuned to the actual rendered sprite footprint.
         const halfWidthPct =
-          (obs.type === "bus" ? 4.5 : obs.type === "car" ? 3.2 : 2.0) * (1 + lane * 0.6);
+          (obs.type === "bus" ? 6.5 : obs.type === "car" ? 4.5 : 3.0) * depthScale;
         const heightPct =
-          (obs.type === "bus" ? 4.0 : obs.type === "car" ? 3.2 : 2.4) * (1 + lane * 0.6);
+          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 4.0 : 3.2) * depthScale;
 
         const dx = Math.abs(obs.position - ballX);
         if (dx >= halfWidthPct) return false;
 
-        // Ball must be inside the sprite's Y footprint with a small inset —
-        // grazing a lane's edge doesn't count.
-        const yPad = 0.5;
+        // Ball must be inside the sprite's Y footprint with a small inset.
+        const yPad = 0.3;
         return (
           ballY >= obsBottomGlobal + yPad &&
           ballY <= obsBottomGlobal + heightPct - yPad
