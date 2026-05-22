@@ -304,6 +304,13 @@ export const GameCanvas = ({
   };
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) {
+      obstaclesRef.current = [];
+      setObstacles([]);
+      setLaneWarnings([]);
+      return;
+    }
+
     // Wave-based traffic scheduler.
     // - 3 fixed lanes for clean visual layering (no overlap with sprite layer)
     // - Each wave releases 1–3 vehicles across distinct lanes, staggered in time
@@ -547,8 +554,9 @@ export const GameCanvas = ({
     return () => {
       stopped = true;
       clearTimeout(waveTimer);
+      setLaneWarnings([]);
     };
-  }, [currentDifficultySettings]);
+  }, [gameStarted, gameEnded, difficulty]);
 
   useEffect(() => {
     // Spawn curb coins randomly
