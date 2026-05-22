@@ -102,14 +102,14 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
               displayPos = obs.prevPosition + (obs.position - obs.prevPosition) * t;
             }
             const px = (displayPos / 100) * w;
-            // bottomPct (within road) = 6 + lane*70  →  y from top
+            // bottomPct (within road) = 6 + lane*70  →  y from top.
+            // Lane is 0..1: SMALL lane = closer to the player (front of road),
+            // LARGE lane = farther away (back). Perspective therefore demands
+            // depthScale DECREASE with lane (front sprites largest).
             const bottomPct = 6 + obs.lane * 70;
             const py = h - (bottomPct / 100) * h;
-            // depth-based scale matches the prior CSS scaling
-            const depthScale = 0.32 + obs.lane * 0.5;
+            const depthScale = 0.95 - obs.lane * 0.55;
             // Base sprite scales tuned to each sheet's native cell size.
-            // The car sheet is now sliced correctly as 2×4 (cells are taller
-            // than wide), so it needs a smaller base scale than the bus.
             const baseScale =
               obs.type === "bus" ? 0.32 :
               obs.type === "car" ? 0.22 : 0.26;
