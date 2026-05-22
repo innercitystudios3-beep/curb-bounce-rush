@@ -55,6 +55,44 @@ interface GameCanvasProps {
   onChallengeProgress?: (challengeId: string, newProgress: number) => void;
 }
 
+const TIME_LIMIT = 180; // 3 minutes in seconds
+
+const DIFFICULTY_SETTINGS = {
+  easy: {
+    baseSuccessChance: 45,
+    successChanceDecrease: 5,
+    obstacleSpawnChance: 0.7,
+    obstacleSpeed: { min: 0.28, max: 0.48 },
+    bullseyeSpeed: 0.5,
+    intensityRampMax: 1.12,
+    rampSpeed: 0.75,
+    surgeStartSeconds: 20,
+    surgePeakCoefficient: 0.7,
+  },
+  medium: {
+    baseSuccessChance: 35,
+    successChanceDecrease: 7,
+    obstacleSpawnChance: 0.6,
+    obstacleSpeed: { min: 0.36, max: 0.62 },
+    bullseyeSpeed: 1.0,
+    intensityRampMax: 1.25,
+    rampSpeed: 1.0,
+    surgeStartSeconds: 30,
+    surgePeakCoefficient: 1.4,
+  },
+  hard: {
+    baseSuccessChance: 25,
+    successChanceDecrease: 10,
+    obstacleSpawnChance: 0.5,
+    obstacleSpeed: { min: 0.44, max: 0.78 },
+    bullseyeSpeed: 1.8,
+    intensityRampMax: 1.40,
+    rampSpeed: 1.4,
+    surgeStartSeconds: 45,
+    surgePeakCoefficient: 1.8,
+  }
+} as const;
+
 export const GameCanvas = ({ 
   difficulty = "easy", 
   onBackToDifficulty,
@@ -121,46 +159,7 @@ export const GameCanvas = ({
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [laneWarnings, setLaneWarnings] = useState<number[]>([]); // active laneIdx warnings (0,1,2)
 
-  const TIME_LIMIT = 180; // 3 minutes in seconds
-  
-  // Difficulty settings
-  const difficultySettings = {
-    easy: {
-      baseSuccessChance: 45,
-      successChanceDecrease: 5,
-      obstacleSpawnChance: 0.7,
-      obstacleSpeed: { min: 1, max: 2 },
-      bullseyeSpeed: 0.5,
-      intensityRampMax: 1.12,
-      rampSpeed: 0.75,
-      surgeStartSeconds: 20,
-      surgePeakCoefficient: 0.7,
-    },
-    medium: {
-      baseSuccessChance: 35,
-      successChanceDecrease: 7,
-      obstacleSpawnChance: 0.6,
-      obstacleSpeed: { min: 1.5, max: 3 },
-      bullseyeSpeed: 1.0,
-      intensityRampMax: 1.25,
-      rampSpeed: 1.0,
-      surgeStartSeconds: 30,
-      surgePeakCoefficient: 1.4,
-    },
-    hard: {
-      baseSuccessChance: 25,
-      successChanceDecrease: 10,
-      obstacleSpawnChance: 0.5,
-      obstacleSpeed: { min: 2, max: 4 },
-      bullseyeSpeed: 1.8,
-      intensityRampMax: 1.40,
-      rampSpeed: 1.4,
-      surgeStartSeconds: 45,
-      surgePeakCoefficient: 1.8,
-    }
-  };
-
-  const currentDifficultySettings = difficultySettings[difficulty];
+  const currentDifficultySettings = DIFFICULTY_SETTINGS[difficulty];
   const baseSuccessChance = currentDifficultySettings.baseSuccessChance;
   const successChanceDecrease = currentDifficultySettings.successChanceDecrease;
   
@@ -305,6 +304,13 @@ export const GameCanvas = ({
   };
 
   useEffect(() => {
+    if (!gameStarted || gameEnded) {
+      obstaclesRef.current = [];
+      setObstacles([]);
+      setLaneWarnings([]);
+      return;
+    }
+
     // Wave-based traffic scheduler.
     // - 3 fixed lanes for clean visual layering (no overlap with sprite layer)
     // - Each wave releases 1–3 vehicles across distinct lanes, staggered in time
@@ -548,8 +554,9 @@ export const GameCanvas = ({
     return () => {
       stopped = true;
       clearTimeout(waveTimer);
+      setLaneWarnings([]);
     };
-  }, [currentDifficultySettings]);
+  }, [gameStarted, gameEnded, difficulty]);
 
   useEffect(() => {
     // Spawn curb coins randomly
