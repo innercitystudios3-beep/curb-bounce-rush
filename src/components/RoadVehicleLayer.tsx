@@ -163,9 +163,13 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
         cancelled = true;
         cancelAnimationFrame(raf);
         ro.disconnect();
+        window.removeEventListener("resize", onWinResize);
+        window.removeEventListener("orientationchange", onWinResize);
+        mql.removeEventListener?.("change", onWinResize);
         managerRef.current = null;
         entityByIdRef.current.clear();
       };
+
     }, [obstaclesRef]);
 
     return (
