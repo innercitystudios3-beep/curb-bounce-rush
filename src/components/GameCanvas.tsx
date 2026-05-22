@@ -828,35 +828,37 @@ export const GameCanvas = ({
     const ROAD_HEIGHT = 44;
     const checkObstacleCollision = (ballX: number, ballY: number) => {
       return obstaclesRef.current.find((obs) => {
-        const lane = obs.lane;
-        const depthScale = 0.45 + lane * 0.75;
-        const obsBottomGlobal =
-          ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
-
-        // Tightened hitbox — must overlap the rendered sprite, not just be
-        // anywhere near it. Prevents false-positive "hits" from the ball
-        // arcing through unrelated lanes' Y-bands en route to the curb.
-        const halfWidthPct =
-          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 4 : 2.5) * depthScale;
-        const heightPct =
-          (obs.type === "bus" ? 5 : obs.type === "car" ? 4 : 2.8) * depthScale;
-
-        const obsCenterX = obs.position;
-        const dx = Math.abs(obsCenterX - ballX);
-        const withinX = dx < halfWidthPct;
-
-        // Ball must be inside the sprite's Y footprint with no padding —
-        // grazing a lane's edge doesn't count.
-        const yPad = 0.5;
-        const withinY =
-          ballY >= obsBottomGlobal + yPad &&
-          ballY <= obsBottomGlobal + heightPct - yPad;
-
         // Off-screen vehicles never block (covers fade-out tail too)
         if (obs.position < 0 || obs.position > 100) return false;
         if ((obs.opacity ?? 1) < 0.5) return false;
 
-        return withinX && withinY;
+        const lane = obs.lane;
+        // IMPORTANT: depthScale MUST match RoadVehicleLayer's renderer
+        // (`0.32 + lane * 0.5`) so the hitbox tracks the visible sprite
+        // identically on every screen size. Previously this used a different
+        // formula, causing the ball to "hit" sprites that weren't there.
+        const depthScale = 0.32 + lane * 0.5;
+        const obsBottomGlobal =
+          ROAD_BOTTOM + (6 + lane * 70) * (ROAD_HEIGHT / 100);
+
+        // Hitbox in % of screen, tuned to the actual rendered sprite footprint
+        // (bus is widest/tallest, scooter is narrowest). Conservative so a
+        // grazing pass doesn't register.
+        const halfWidthPct =
+          (obs.type === "bus" ? 4.5 : obs.type === "car" ? 3.2 : 2.0) * (1 + lane * 0.6);
+        const heightPct =
+          (obs.type === "bus" ? 4.0 : obs.type === "car" ? 3.2 : 2.4) * (1 + lane * 0.6);
+
+        const dx = Math.abs(obs.position - ballX);
+        if (dx >= halfWidthPct) return false;
+
+        // Ball must be inside the sprite's Y footprint with a small inset —
+        // grazing a lane's edge doesn't count.
+        const yPad = 0.5;
+        return (
+          ballY >= obsBottomGlobal + yPad &&
+          ballY <= obsBottomGlobal + heightPct - yPad
+        );
       });
     };
 
@@ -1335,7 +1337,7 @@ export const GameCanvas = ({
             </Button>
 
             {ballPhase === 'ready' && (
-              <div className="hidden md:block">
+              <div className="block">
                 <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
               </div>
             )}
@@ -1370,9 +1372,9 @@ export const GameCanvas = ({
                 </div>
               </div>
 
-              <div className="self-stretch w-px bg-border hidden xs:block sm:block" />
+              <div className="self-stretch w-px bg-border" />
 
-              <div className="text-center leading-tight hidden sm:block">
+              <div className="text-center leading-tight">
                 <div
                   className="text-muted-foreground font-semibold uppercase tracking-wide"
                   style={{ fontSize: 'clamp(8px, 1.6vw, 12px)' }}
@@ -1387,7 +1389,7 @@ export const GameCanvas = ({
                 </div>
               </div>
 
-              <div className="self-stretch w-px bg-border hidden sm:block" />
+              <div className="self-stretch w-px bg-border" />
 
               <div className="text-center leading-tight">
                 <div
@@ -1819,7 +1821,6 @@ export const GameCanvas = ({
           {ballPhase === 'ready' && (
             <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
               <span>Streak: {consecutiveHits}</span>
-              <span className="sm:hidden">• Coins: {coins}</span>
             </div>
           )}
         </div>
