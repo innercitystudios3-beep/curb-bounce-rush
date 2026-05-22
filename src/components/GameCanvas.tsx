@@ -1247,7 +1247,7 @@ export const GameCanvas = ({
         style={{
           height: '42%',
           backgroundImage: `url(${getBackdropUrl()})`,
-          backgroundSize: '100% 100%',
+          backgroundSize: 'cover',
           backgroundPosition: 'center 15%',
           backgroundRepeat: 'no-repeat',
         }}
