@@ -864,9 +864,9 @@ export const GameCanvas = ({
 
         // Hitbox in % of screen, tuned to the actual rendered sprite footprint.
         const halfWidthPct =
-          (obs.type === "bus" ? 6.5 : obs.type === "car" ? 7.3 : 4.8) * depthScale;
+          (obs.type === "bus" ? 6.5 : obs.type === "car" ? 6.0 : 4.0) * depthScale;
         const heightPct =
-          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 6.5 : 5.2) * depthScale;
+          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 5.4 : 4.3) * depthScale;
 
         const dx = Math.abs(obs.position - ballX);
         if (dx >= halfWidthPct) return false;
@@ -1247,7 +1247,7 @@ export const GameCanvas = ({
         style={{
           height: '42%',
           backgroundImage: `url(${getBackdropUrl()})`,
-          backgroundSize: 'cover',
+          backgroundSize: '100% 100%',
           backgroundPosition: 'center 15%',
           backgroundRepeat: 'no-repeat',
         }}
@@ -1463,7 +1463,7 @@ export const GameCanvas = ({
               }}
             >
               {ballPhase === 'ready'
-                ? 'Use ← → to aim · Hold the throw button to charge · Release to launch'
+                ? 'Aim with LEFT / RIGHT, then press and hold THROW — let go when the meter is near the top!'
                 : ballPhase === 'flying'
                 ? 'Ball in flight — dodge cars, scooters and buses!'
                 : ballPhase === 'hit'
@@ -1782,7 +1782,7 @@ export const GameCanvas = ({
               </Button>
               
               <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
-                {Math.round(ballHorizontalPosition)}%
+                {ballHorizontalPosition < 40 ? "◀ Aim Left" : ballHorizontalPosition > 60 ? "Aim Right ▶" : "● Aim Center"}
               </div>
               
               <Button
@@ -1835,7 +1835,7 @@ export const GameCanvas = ({
                     return "BALL IN FLIGHT…";
                 }
               }
-              return isCharging ? "RELEASE!" : "HOLD TO CHARGE";
+              return isCharging ? "LET GO TO THROW!" : "🏀 PRESS & HOLD TO THROW";
             })()}
           </Button>
 
