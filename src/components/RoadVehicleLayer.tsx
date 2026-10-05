@@ -119,7 +119,7 @@ export const RoadVehicleLayer = forwardRef<RoadVehicleLayerHandle, Props>(
             // Base sprite scales tuned to each sheet's native cell size.
             const baseScale =
               obs.type === "bus" ? 0.32 :
-              obs.type === "car" ? 0.22 : 0.26;
+              obs.type === "car" ? 0.36 : 0.42;
             const finalScale = baseScale * depthScale;
 
             if (!ent) {

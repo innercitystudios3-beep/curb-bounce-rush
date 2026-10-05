@@ -864,9 +864,9 @@ export const GameCanvas = ({
 
         // Hitbox in % of screen, tuned to the actual rendered sprite footprint.
         const halfWidthPct =
-          (obs.type === "bus" ? 6.5 : obs.type === "car" ? 4.5 : 3.0) * depthScale;
+          (obs.type === "bus" ? 6.5 : obs.type === "car" ? 7.3 : 4.8) * depthScale;
         const heightPct =
-          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 4.0 : 3.2) * depthScale;
+          (obs.type === "bus" ? 5.5 : obs.type === "car" ? 6.5 : 5.2) * depthScale;
 
         const dx = Math.abs(obs.position - ballX);
         if (dx >= halfWidthPct) return false;
