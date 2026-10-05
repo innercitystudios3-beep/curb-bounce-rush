@@ -245,17 +245,6 @@ export const GameCanvas = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isThowing, isBallFlying, ballPhase]);
 
-  const moveLeft = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
-    setBallHorizontalPosition(prev => Math.max(10, prev - 10));
-    soundManager.playClick();
-  };
-
-  const moveRight = () => {
-    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
-    setBallHorizontalPosition(prev => Math.min(90, prev + 10));
-    soundManager.playClick();
-  };
 
   const calculateCoinsEarned = (throwPower: number, isSuccess: boolean) => {
     if (!isSuccess) return 0;
@@ -1463,7 +1452,7 @@ export const GameCanvas = ({
               }}
             >
               {ballPhase === 'ready'
-                ? 'Aim with LEFT / RIGHT, then press and hold THROW — let go when the meter is near the top!'
+                ? `Aim: ${Math.round(ballHorizontalPosition)}% — press and hold THROW, let go when the meter is near the top!`
                 : ballPhase === 'flying'
                 ? 'Ball in flight — dodge cars, scooters and buses!'
                 : ballPhase === 'hit'
@@ -1768,34 +1757,6 @@ export const GameCanvas = ({
         {/* Controls - Mobile Responsive */}
         <div className="absolute bottom-4 sm:bottom-8 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4">
           
-          {/* Movement controls */}
-          {ballPhase === 'ready' && (
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveLeft}
-                disabled={isThowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                ← LEFT
-              </Button>
-              
-              <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
-                {ballHorizontalPosition < 40 ? "◀ Aim Left" : ballHorizontalPosition > 60 ? "Aim Right ▶" : "● Aim Center"}
-              </div>
-              
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveRight}
-                disabled={isThowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                RIGHT →
-              </Button>
-            </div>
-          )}
           
           <Button
             size="lg"
