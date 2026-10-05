@@ -1782,7 +1782,7 @@ export const GameCanvas = ({
               </Button>
               
               <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
-                {Math.round(ballHorizontalPosition)}%
+                {ballHorizontalPosition < 40 ? "◀ Aim Left" : ballHorizontalPosition > 60 ? "Aim Right ▶" : "● Aim Center"}
               </div>
               
               <Button
@@ -1835,7 +1835,7 @@ export const GameCanvas = ({
                     return "BALL IN FLIGHT…";
                 }
               }
-              return isCharging ? "LET GO TO THROW!" : "🏀 PRESS &amp; HOLD TO THROW";
+              return isCharging ? "LET GO TO THROW!" : "🏀 PRESS & HOLD TO THROW";
             })()}
           </Button>
 
