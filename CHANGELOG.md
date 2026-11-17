@@ -2,6 +2,30 @@
 
 All notable changes to the Curbball game are documented here. Each update builds on the previous version — existing features are preserved unless explicitly requested otherwise.
 
+## [1.1.0] — 2026-11-17
+### Added
+- Optional player accounts (email or Google). Guests still play; buying requires sign-in.
+- Verified player inventory saved to the account; purchases restore on any device after sign-in.
+- Live unlocks: purchased items appear, equip and show a notification without restarting.
+- Automatic recovery: on sign-in and when returning to the game, unfinished checkouts are re-checked with Stripe and missing items delivered.
+- Older email-only purchases are linked to an account signed in with the same email.
+### Changed
+- Items are granted only after Stripe confirms payment on the server (webhook), not by the return page.
+- Server refuses checkout for items the player already owns.
+### Fixed
+- Duplicate Stripe notifications can no longer credit an item twice.
+- Refunds and disputes revoke the item; a won dispute restores it.
+### Files modified
+- src/pages/Index.tsx, src/components/DifficultySelection.tsx, BallShop.tsx, BackdropShop.tsx, src/lib/stripePayments.ts
+- New: src/hooks/useInventory.ts, src/components/AccountDialog.tsx
+- Server: create-iap-checkout, stripe-webhook, verify-iap-purchase, new sync-inventory, shared purchase rules + tests
+### Database/config changes
+- New tables: player_inventory (live updates on), checkout_sessions, stripe_webhook_events
+- purchases: added user_id, status, status_changed_at (no data removed)
+- Stripe test-mode webhook endpoint created
+
+---
+
 ## [1.0.0] — 2026-11-14 (Baseline)
 
 Established as the current stable state of the game. Existing features at this baseline include:
