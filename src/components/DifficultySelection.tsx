@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Target, Zap, Flame, ShoppingBag, Coins, Sparkles,
   BarChart3, Circle, Trophy, RefreshCw, User,
+  UserCircle,
 } from "lucide-react";
 import { useEffect, useState, KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,8 @@ interface DifficultySelectionProps {
   onOpenAchievements?: () => void;
   onOpenDailyChallenges?: () => void;
   onOpenRestorePurchases?: () => void;
+  onOpenAccount?: () => void;
+  accountLabel?: string;
 }
 
 const DIFFICULTIES = [
@@ -71,6 +74,8 @@ export const DifficultySelection = ({
   onOpenAchievements,
   onOpenDailyChallenges,
   onOpenRestorePurchases,
+  onOpenAccount,
+  accountLabel = "Sign In",
 }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
@@ -222,6 +227,7 @@ export const DifficultySelection = ({
                 Unlock rewards and track progress!
               </p>
 
+<div className="flex flex-wrap justify-center gap-2">
               {onOpenRestorePurchases && (
                 <Button
                   onClick={onOpenRestorePurchases}
@@ -234,6 +240,19 @@ export const DifficultySelection = ({
                   Restore Purchases
                 </Button>
               )}
+              {onOpenAccount && (
+                <Button
+                  onClick={onOpenAccount}
+                  variant="outline"
+                  size="sm"
+                  aria-label={accountLabel}
+                  className="min-h-11 gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
+                >
+                  <UserCircle className="w-4 h-4" aria-hidden="true" />
+                  {accountLabel}
+                </Button>
+              )}
+              </div>
             </div>
           )}
         </div>

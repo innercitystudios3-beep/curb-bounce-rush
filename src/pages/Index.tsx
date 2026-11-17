@@ -7,6 +7,8 @@ import { Achievements, Achievement } from "@/components/Achievements";
 import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { RestorePurchases } from "@/components/RestorePurchases";
 import { useToast } from "@/hooks/use-toast";
+import { useInventory, applyInventory } from "@/hooks/useInventory";
+import { AccountDialog } from "@/components/AccountDialog";
 import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
 
 const Index = () => {
@@ -147,63 +149,66 @@ const Index = () => {
     initializeGame();
   }, []);
 
-  // Handle Stripe purchase redirect
+  // Verified inventory from the server (source of truth for real-money items)
+  const { user, items: inventory, lastChange, sync: syncInventory } = useInventory();
+  const [showAccount, setShowAccount] = useState(false);
+  const [accountReason, setAccountReason] = useState<string | undefined>();
+
   useEffect(() => {
-    const handlePurchaseRedirect = async () => {
-      const { isPurchaseSuccess, isPurchaseCancelled, itemId, itemType, sessionId } = checkPurchaseRedirect();
-      
-      if (isPurchaseCancelled) {
-        toast({
-          title: "Purchase Cancelled",
-          description: "Your purchase was cancelled.",
-        });
-        clearPurchaseParams();
-        return;
+    const open = () => { setAccountReason("Sign in to buy items. Your purchases stay with your account on every device."); setShowAccount(true); };
+    window.addEventListener('curbball:auth-required', open);
+    return () => window.removeEventListener('curbball:auth-required', open);
+  }, []);
+
+  // Apply verified inventory (unlocks + refund/dispute revocations) to the local lists.
+  useEffect(() => {
+    if (!inventory.length) return;
+    setOwnedBalls((prev) => {
+      const next = applyInventory(prev, inventory, 'ball');
+      localStorage.setItem('ownedBalls', JSON.stringify(next));
+      return next;
+    });
+    setOwnedBackdrops((prev) => {
+      const next = applyInventory(prev, inventory, 'backdrop');
+      localStorage.setItem('ownedBackdrops', JSON.stringify(next));
+      return next;
+    });
+    const revoked = new Set(inventory.filter((i) => i.status !== 'active').map((i) => i.item_id));
+    setCurrentBall((c) => { if (revoked.has(c)) { localStorage.setItem('currentBall', 'default'); return 'default'; } return c; });
+    setCurrentBackdrop((c) => { if (revoked.has(c)) { localStorage.setItem('currentBackdrop', 'default'); return 'default'; } return c; });
+  }, [inventory]);
+
+  // Live notification when the server delivers or revokes an item.
+  useEffect(() => {
+    if (!lastChange) return;
+    const label = lastChange.item_type === 'ball' ? 'Ball Skin' : 'Backdrop';
+    if (lastChange.status === 'active') {
+      if (lastChange.item_type === 'ball') { setCurrentBall(lastChange.item_id); localStorage.setItem('currentBall', lastChange.item_id); }
+      else { setCurrentBackdrop(lastChange.item_id); localStorage.setItem('currentBackdrop', lastChange.item_id); }
+      toast({ title: `🎉 ${label} Unlocked!`, description: "Your purchase is ready and equipped.", duration: 5000 });
+    } else {
+      toast({ title: `${label} removed`, description: "This purchase was refunded or disputed.", variant: "destructive" });
+    }
+  }, [lastChange, toast]);
+
+  // Handle Stripe return page. Delivery itself happens on the server (webhook);
+  // this only speeds it up and confirms to the player.
+  useEffect(() => {
+    const { isPurchaseSuccess, isPurchaseCancelled, sessionId } = checkPurchaseRedirect();
+    if (isPurchaseCancelled) {
+      toast({ title: "Purchase Cancelled", description: "You were not charged." });
+      clearPurchaseParams();
+      return;
+    }
+    if (!isPurchaseSuccess || !sessionId || !user) return;
+    clearPurchaseParams();
+    verifyPurchase(sessionId).then((result) => {
+      if (!result.success) {
+        toast({ title: "Payment processing", description: "Your item will appear automatically as soon as payment is confirmed. You won't be charged again." });
       }
-      
-      if (isPurchaseSuccess && sessionId && itemId && itemType) {
-        // Verify the purchase with Stripe
-        const result = await verifyPurchase(sessionId);
-        
-        if (result.success && result.itemId) {
-          // Unlock the purchased item
-          if (result.itemType === 'ball') {
-            const newOwned = [...ownedBalls, result.itemId];
-            setOwnedBalls(newOwned);
-            setCurrentBall(result.itemId);
-            localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
-            localStorage.setItem('currentBall', result.itemId);
-            toast({
-              title: "🎉 Ball Skin Unlocked!",
-              description: `Your new ball skin is now available!`,
-              duration: 5000,
-            });
-          } else if (result.itemType === 'backdrop') {
-            const newOwned = [...ownedBackdrops, result.itemId];
-            setOwnedBackdrops(newOwned);
-            setCurrentBackdrop(result.itemId);
-            localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
-            localStorage.setItem('currentBackdrop', result.itemId);
-            toast({
-              title: "🎉 Backdrop Unlocked!",
-              description: `Your new backdrop is now available!`,
-              duration: 5000,
-            });
-          }
-        } else {
-          toast({
-            title: "Purchase Verification Failed",
-            description: "Please contact support if you were charged.",
-            variant: "destructive",
-          });
-        }
-        
-        clearPurchaseParams();
-      }
-    };
-    
-    handlePurchaseRedirect();
-  }, [ownedBalls, ownedBackdrops, toast]);
+      syncInventory();
+    });
+  }, [user, toast, syncInventory]);
 
   if (isLoading) {
     return (
@@ -350,7 +355,11 @@ const Index = () => {
           onOpenAchievements={() => setShowAchievements(true)}
           onOpenDailyChallenges={() => setShowDailyChallenges(true)}
           onOpenRestorePurchases={() => setShowRestorePurchases(true)}
+          onOpenAccount={() => { setAccountReason(undefined); setShowAccount(true); }}
+          accountLabel={user ? "My Account" : "Sign In"}
         />
+
+        <AccountDialog open={showAccount} onClose={() => setShowAccount(false)} user={user} reason={accountReason} />
 
         <RestorePurchases
           isOpen={showRestorePurchases}

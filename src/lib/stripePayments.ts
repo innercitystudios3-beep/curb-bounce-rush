@@ -17,6 +17,11 @@ export const initiateStripePurchase = async (
   ownedItems?: string[]
 ): Promise<{ url: string | null; error?: string; code?: string }> => {
   try {
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) {
+      window.dispatchEvent(new CustomEvent('curbball:auth-required'));
+      return { url: null, error: 'Please sign in to buy items.', code: 'AUTH_REQUIRED' };
+    }
     const { data, error } = await supabase.functions.invoke('create-iap-checkout', {
       body: { itemId, itemName, ownedItems },
     });
@@ -62,7 +67,7 @@ export const verifyPurchase = async (
       return { success: false, error: error.message };
     }
 
-    if (data?.verified) {
+    if (data?.verified || data?.status === 'paid') {
       return {
         success: true,
         itemId: data.itemId,

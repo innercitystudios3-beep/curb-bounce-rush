@@ -161,6 +161,7 @@ export const BackdropShop = ({
         return;
       }
       
+      if (code === 'AUTH_REQUIRED') return;
       if (error) {
         toast({
           title: "Purchase Error",
