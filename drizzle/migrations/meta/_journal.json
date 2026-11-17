@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794934076141,
+      "tag": "0000_player_inventory_system",
+      "breakpoints": true
+    }
+  ]
+}

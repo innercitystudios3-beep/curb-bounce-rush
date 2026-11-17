@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      checkout_sessions: {
+        Row: {
+          created_at: string
+          item_id: string
+          item_type: string
+          session_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          item_id: string
+          item_type: string
+          session_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          item_id?: string
+          item_type?: string
+          session_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customer_emails: {
         Row: {
           created_at: string
@@ -41,6 +71,42 @@ export type Database = {
         }
         Relationships: []
       }
+      player_inventory: {
+        Row: {
+          granted_at: string
+          id: string
+          item_id: string
+          item_type: string
+          revoked_at: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          revoked_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          revoked_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           amount_paid: number
@@ -51,8 +117,11 @@ export type Database = {
           item_id: string
           item_name: string | null
           item_type: string
+          status: string
+          status_changed_at: string | null
           stripe_payment_intent_id: string | null
           stripe_session_id: string
+          user_id: string | null
         }
         Insert: {
           amount_paid: number
@@ -63,8 +132,11 @@ export type Database = {
           item_id: string
           item_name?: string | null
           item_type: string
+          status?: string
+          status_changed_at?: string | null
           stripe_payment_intent_id?: string | null
           stripe_session_id: string
+          user_id?: string | null
         }
         Update: {
           amount_paid?: number
@@ -75,8 +147,29 @@ export type Database = {
           item_id?: string
           item_name?: string | null
           item_type?: string
+          status?: string
+          status_changed_at?: string | null
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      stripe_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          received_at?: string
         }
         Relationships: []
       }
