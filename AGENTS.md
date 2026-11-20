@@ -1,0 +1,1 @@
+- Real-money items are granted only server-side (Stripe webhook / idempotent `fulfillSession` in `supabase/functions/_shared/fulfill.ts`) into `player_inventory`; the client only mirrors it. Why: payments must be verified and never double-credited.
